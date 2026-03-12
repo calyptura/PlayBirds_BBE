@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Editor | {{ title }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .editor-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+        }
+
+        /* --- Toolbar --- */
+        .toolbar {
+            grid-column: 1 / -1;
+            background: #222;
+            border-bottom: 1px solid #333;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .toolbar h1 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #aaa;
+        }
+
+        .toolbar h1 span {
+            color: #8bc34a;
+            font-weight: 600;
+        }
+
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-save {
+            background: #8bc34a;
+            color: #1a1a1a;
+        }
+
+        .btn-save:hover {
+            background: #9ccc65;
+        }
+
+        .btn-back {
+            background: #333;
+            color: #ccc;
+            margin-right: 10px;
+        }
+
+        .btn-back:hover {
+            background: #444;
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            background: #222;
+            border-right: 1px solid #333;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .biome-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .biome-item:hover {
+            background: #2a2a2a;
+        }
+
+        .biome-item.selected {
+            background: #2a2a2a;
+            border-color: #8bc34a;
+        }
+
+        .biome-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .biome-item-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .biome-item-id {
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        .help-text {
+            margin-top: 20px;
+            padding: 12px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            color: #888;
+            line-height: 1.6;
+        }
+
+        .help-text strong {
+            color: #8bc34a;
+        }
+
+        /* --- Canvas --- */
+        .canvas-area {
+            position: relative;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .canvas-wrapper img {
+            display: block;
+            max-height: calc(100vh - 60px);
+            max-width: 100%;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        /* --- Hotspot boxes --- */
+        .hotspot-box {
+            position: absolute;
+            border: 2px dashed rgba(139, 195, 74, 0.6);
+            background: rgba(139, 195, 74, 0.08);
+            cursor: move;
+            border-radius: 6px;
+            transition: background 0.15s, border-color 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hotspot-box:hover {
+            background: rgba(139, 195, 74, 0.15);
+            border-color: rgba(139, 195, 74, 0.9);
+        }
+
+        .hotspot-box.selected {
+            border-color: #8bc34a;
+            border-style: solid;
+            background: rgba(139, 195, 74, 0.12);
+            box-shadow: 0 0 12px rgba(139, 195, 74, 0.3);
+        }
+
+        .hotspot-box-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #8bc34a;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* Resize handle */
+        .hotspot-resize {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            width: 10px;
+            height: 10px;
+            background: #8bc34a;
+            border-radius: 2px;
+            cursor: nwse-resize;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .hotspot-box:hover .hotspot-resize,
+        .hotspot-box.selected .hotspot-resize {
+            opacity: 1;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #333;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            z-index: 100;
+            transition: transform 0.3s ease;
+            border: 1px solid #8bc34a;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-layout">
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <h1><span>Map Editor</span> — Drag hotspots over biome names</h1>
+            <div>
+                <button class="btn btn-back" onclick="location.href='/'">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <button class="btn btn-save" id="btnSave">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2>Biomes</h2>
+            {% for bioma_id, bioma in biomas.items() %}
+            <div class="biome-item" data-biome="{{ bioma_id }}" onclick="selectBiome('{{ bioma_id }}')">
+                <div class="biome-color" style="background: {{ bioma.cor }};"></div>
+                <div>
+                    <div class="biome-item-name">{{ bioma.nome }}</div>
+                    <div class="biome-item-id">{{ bioma_id }}</div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="help-text">
+                <strong>How to use:</strong><br>
+                • Drag each box over its biome name on the map<br>
+                • Drag the green corner to resize<br>
+                • Click <strong>Save</strong> to persist positions
+            </div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-area">
+            <div class="canvas-wrapper" id="canvasWrapper">
+                <img src="/map-image/mapa_biomas.png" id="mapImage" draggable="false">
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const BIOMAS = {{ biomas | tojson }};
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const mapImage = document.getElementById('mapImage');
+        let boxes = {};
+        let selectedBiome = null;
+
+        // Wait for image to load
+        mapImage.addEventListener('load', init);
+        if (mapImage.complete) init();
+
+        function init() {
+            const imgW = mapImage.naturalWidth;
+            const imgH = mapImage.naturalHeight;
+
+            for (const [id, info] of Object.entries(BIOMAS)) {
+                const box = document.createElement('div');
+                box.className = 'hotspot-box';
+                box.dataset.biome = id;
+
+                const label = document.createElement('span');
+                label.className = 'hotspot-box-label';
+                label.textContent = info.nome;
+                box.appendChild(label);
+
+                const resizeHandle = document.createElement('div');
+                resizeHandle.className = 'hotspot-resize';
+                box.appendChild(resizeHandle);
+
+                // Position from percentages
+                box.style.left = info.hotspot_x + '%';
+                box.style.top = info.hotspot_y + '%';
+                box.style.width = info.hotspot_w + '%';
+                box.style.height = info.hotspot_h + '%';
+
+                canvasWrapper.appendChild(box);
+                boxes[id] = box;
+
+                // Drag to move
+                makeDraggable(box, id);
+                // Drag to resize
+                makeResizable(resizeHandle, box, id);
+
+                box.addEventListener('mousedown', (e) => {
+                    if (e.target === resizeHandle) return;
+                    selectBiome(id);
+                });
+            }
+        }
+
+        function selectBiome(id) {
+            selectedBiome = id;
+            document.querySelectorAll('.hotspot-box').forEach(b => b.classList.remove('selected'));
+            document.querySelectorAll('.biome-item').forEach(b => b.classList.remove('selected'));
+            if (boxes[id]) boxes[id].classList.add('selected');
+            const sideItem = document.querySelector(`.biome-item[data-biome="${id}"]`);
+            if (sideItem) sideItem.classList.add('selected');
+        }
+
+        function makeDraggable(box, id) {
+            let startX, startY, startLeft, startTop;
+
+            box.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('hotspot-resize')) return;
+                e.preventDefault();
+                const rect = canvasWrapper.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = parseFloat(box.style.left);
+                startTop = parseFloat(box.style.top);
+
+                function onMove(ev) {
+                    const dx = (ev.clientX - startX) / rect.width * 100;
+                    const dy = (ev.clientY - startY) / rect.height * 100;
+                    box.style.left = Math.max(0, Math.min(100 - parseFloat(box.style.width), startLeft + dx)) + '%';
+                    box.style.top = Math.max(0, Math.min(100 - parseFloat(box.style.height), startTop + dy)) + '%';
+                }
+
+                function onUp() {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                }
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+        }
+
+        function makeResizable(handle, box, id) {
+            handle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const rect = canvasWrapper.getBoundingClientRect();
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startW = parseFloat(box.style.width);
+                const startH = parseFloat(box.style.height);
+
+                function onMove(ev) {
+                    const dx = (ev.clientX - startX) / rect.width * 100;
+                    const dy = (ev.clientY - startY) / rect.height * 100;
+                    box.style.width = Math.max(3, startW + dx) + '%';
+                    box.style.height = Math.max(3, startH + dy) + '%';
+                }
+
+                function onUp() {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                }
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+        }
+
+        // Save
+        document.getElementById('btnSave').addEventListener('click', async () => {
+            const hotspots = [];
+            for (const [id, box] of Object.entries(boxes)) {
+                hotspots.push({
+                    id: id,
+                    x: parseFloat(box.style.left),
+                    y: parseFloat(box.style.top),
+                    w: parseFloat(box.style.width),
+                    h: parseFloat(box.style.height)
+                });
+            }
+
+            const res = await fetch('/api/editor/mapa/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hotspots })
+            });
+
+            if (res.ok) {
+                showToast('✅ Hotspots saved!');
+            } else {
+                showToast('❌ Error saving');
+            }
+        });
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+/* ==============================================
+   MAP PAGE - Tela de seleção de biomas
+   ============================================== */
+
+.map-page {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* --- Map Header --- */
+.map-header {
+    text-align: center;
+    padding: var(--space-lg) var(--space-xl) var(--space-sm);
+}
+
+.map-tagline {
+    font-family: 'Fraunces', serif;
+    font-size: 1.6rem;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: 0.02em;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: var(--space-sm) 0 var(--space-lg);
+    text-align: center;
+    /* Shimmer intro animation */
+    background: linear-gradient(
+        90deg,
+        var(--text-muted) 0%,
+        var(--text-muted) 40%,
+        #8bc34a 50%,
+        var(--text-muted) 60%,
+        var(--text-muted) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: taglineIn 0.8s var(--ease-out) 0.4s forwards,
+               shimmer 1.8s 1s ease-in-out forwards;
+    opacity: 0;
+}
+
+@keyframes taglineIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+        filter: blur(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 100% 0;
+    }
+    100% {
+        background-position: -100% 0;
+    }
+}
+
+/* --- Map Container --- */
+.map-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg) var(--space-xl) 0;
+}
+
+.map-wrapper {
+    position: relative;
+    max-width: 1200px;
+    width: 100%;
+    animation: scaleIn 0.6s var(--ease-out) 0.2s both;
+}
+
+/* Quando há imagem de mapa */
+.map-image-container {
+    position: relative;
+    width: 100%;
+    overflow: visible;
+}
+
+.map-image-container img {
+    width: 100%;
+    display: block;
+}
+
+/* Áreas clicáveis sobre o mapa */
+.map-hotspot {
+    position: absolute;
+    cursor: pointer;
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+/* Page transition fade-out */
+.map-page.navigating {
+    animation: fadeOutPage 0.5s ease forwards;
+}
+
+@keyframes fadeOutPage {
+    to {
+        opacity: 0;
+        transform: scale(1.02);
+        filter: blur(6px);
+    }
+}
+
+.map-hotspot:hover {
+    background: none;
+}
+
+.map-hotspot .hotspot-label {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100%);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 6px 14px;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--transition-base);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-card);
+}
+
+.map-hotspot:hover .hotspot-label {
+    opacity: 1;
+    transform: translateX(-50%) translateY(100%) translateY(4px);
+}
+
+.map-hotspot.disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    filter: grayscale(0.8);
+}
+
+.map-hotspot.disabled:hover {
+    background: none;
+    backdrop-filter: none;
+}
+
+.map-hotspot.disabled:hover .hotspot-label {
+    color: var(--text-muted);
+}
+
+.map-hotspot.disabled:hover::after {
+    border-color: transparent;
+}
+
+/* --- Grid de Cards (fallback sem imagem de mapa) --- */
+.biomas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-lg);
+    max-width: 1200px;
+    width: 100%;
+    padding: 0 var(--space-xl);
+    margin: 0 auto;
+    animation: fadeInUp 0.5s var(--ease-out) 0.15s both;
+}
+
+.bioma-card {
+    position: relative;
+    background: var(--gradient-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-xl);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-md);
+}
+
+.bioma-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-card-hover);
+    border-color: var(--border-hover);
+}
+
+.bioma-card.disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+    filter: grayscale(0.6);
+}
+
+.bioma-card.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--border);
+}
+
+.bioma-card-icon {
+    font-size: 3rem;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xl);
+    background: var(--bg-card);
+    transition: transform var(--transition-base);
+}
+
+.bioma-card:hover .bioma-card-icon {
+    transform: scale(1.1) rotate(-3deg);
+}
+
+.bioma-card h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.bioma-card p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.bioma-card-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--bg-deep);
+    background: var(--gradient-accent);
+}
+
+.bioma-card.disabled .bioma-card-badge {
+    background: var(--bg-card);
+    color: var(--text-muted);
+}
+
+/* Decorative accent line on card top */
+.bioma-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--bioma-cor, var(--accent-primary));
+    opacity: 0;
+    transition: opacity var(--transition-base);
+}
+
+.bioma-card:hover::before {
+    opacity: 1;
+}
+
+/* --- Footer text --- */
+.map-footer {
+    text-align: center;
+    padding: var(--space-lg) var(--space-xl) var(--space-2xl);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    animation: fadeIn 0.5s var(--ease-out) 0.4s both;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .map-header h1 {
+        font-size: 1.6rem;
+    }
+
+    .map-header {
+        padding: var(--space-xl) var(--space-md) var(--space-md);
+    }
+
+    .biomas-grid {
+        grid-template-columns: 1fr;
+        padding: 0 var(--space-md);
+    }
+
+    .bioma-card {
+        padding: var(--space-lg);
+    }
+}

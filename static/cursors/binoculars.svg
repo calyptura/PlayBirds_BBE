@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <g fill="none" stroke="#8bc34a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Left lens -->
+    <circle cx="10" cy="18" r="6" fill="#8bc34a20"/>
+    <!-- Right lens -->
+    <circle cx="22" cy="18" r="6" fill="#8bc34a20"/>
+    <!-- Bridge -->
+    <path d="M14 14h4"/>
+    <!-- Left eyepiece -->
+    <path d="M7 10v4"/>
+    <path d="M13 10v4"/>
+    <!-- Right eyepiece -->
+    <path d="M19 10v4"/>
+    <path d="M25 10v4"/>
+    <!-- Top bar left -->
+    <path d="M7 10h6"/>
+    <!-- Top bar right -->
+    <path d="M19 10h6"/>
+  </g>
+</svg>

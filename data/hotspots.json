@@ -1,0 +1,38 @@
+{
+  "amazonia": {
+    "hotspot_x": 7.4,
+    "hotspot_y": 23.7,
+    "hotspot_w": 18,
+    "hotspot_h": 10
+  },
+  "caatinga": {
+    "hotspot_x": 72.8,
+    "hotspot_y": 23.6,
+    "hotspot_w": 18,
+    "hotspot_h": 10
+  },
+  "pantanal": {
+    "hotspot_x": 20.0,
+    "hotspot_y": 49.7,
+    "hotspot_w": 14.9,
+    "hotspot_h": 7.7
+  },
+  "cerrado": {
+    "hotspot_x": 23.8,
+    "hotspot_y": 59.4,
+    "hotspot_w": 13.1,
+    "hotspot_h": 8.6
+  },
+  "mata-atlantica": {
+    "hotspot_x": 67.3,
+    "hotspot_y": 60.4,
+    "hotspot_w": 18.4,
+    "hotspot_h": 7.9
+  },
+  "pampa": {
+    "hotspot_x": 57.6,
+    "hotspot_y": 83.8,
+    "hotspot_w": 11.4,
+    "hotspot_h": 7.2
+  }
+}

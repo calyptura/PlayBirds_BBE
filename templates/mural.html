@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ bioma.nome }} | {{ title }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mural.css') }}">
+</head>
+<body>
+    <div class="mural-page-wrapper">
+        <!-- Single compact bar -->
+        <header class="mural-bar" id="muralToolbar">
+            <div class="mural-bar-left">
+                <a href="/" class="back-btn" title="Back to map">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <span class="bioma-name-badge" style="border-color: {{ bioma.cor }}40; color: {{ bioma.cor }}">
+                    {{ bioma.icone }} {{ bioma.nome }}
+                </span>
+                <div class="mural-bar-selector" id="muralSelector">
+                    <!-- Populated by JS if multiple murals -->
+                </div>
+            </div>
+
+            <div class="mural-bar-center" id="muralBarCenter">
+                <div class="bar-instructions" id="muralInstructions">
+                    <i class="fas fa-hand-pointer"></i>
+                    <span>Click on the birds to listen</span>
+                </div>
+                <div class="bar-hud" id="gameHud">
+                    <div class="hud-item">
+                        <span class="hud-label">Round</span>
+                        <span class="hud-value" id="hudRound">1/8</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">Score</span>
+                        <span class="hud-value" id="hudScore">0</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">Streak</span>
+                        <span class="hud-value" id="hudStreak">0</span>
+                    </div>
+                    <button class="replay-btn" id="replayBtn" onclick="replaySound()">
+                        <i class="fas fa-redo"></i>
+                        <span class="replay-count" id="replayCount">2</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mural-bar-right">
+                <button class="mode-btn active" id="exploreModeBtn" onclick="setMode('explore')">
+                    <i class="fas fa-headphones"></i> Explore
+                </button>
+                <button class="mode-btn" id="gameModeBtn" onclick="setMode('game')">
+                    <i class="fas fa-gamepad"></i> Play
+                </button>
+                <button class="presentation-btn" id="presentationBtn" onclick="togglePresentationMode()" title="Presentation mode (F)">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="mural-content">
+            <div class="mural-container" id="muralContainer">
+                <img class="mural-background" id="muralBackground" src="" alt="Mural sonoro" style="display:none;">
+
+                <!-- Game start overlay -->
+                <div class="game-start-overlay" id="gameStartOverlay">
+                    <button class="game-start-btn" onclick="startGame()">
+                        <i class="fas fa-play"></i> Start Quiz
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio element -->
+        <audio id="muralAudio" preload="auto"></audio>
+
+        <!-- Presentation mode overlay elements -->
+        <button class="exit-presentation-btn" id="exitPresentationBtn" onclick="exitPresentationMode()">
+            <i class="fas fa-compress"></i>
+        </button>
+
+        <div class="species-name-overlay" id="speciesNameOverlay">
+            <div class="latin" id="overlayLatinName"></div>
+            <div class="common" id="overlayCommonName"></div>
+        </div>
+
+        <!-- Game modal -->
+        <div class="game-modal" id="gameModal">
+            <div class="game-modal-content">
+                <div class="game-modal-emoji" id="gameModalEmoji">🎉</div>
+                <h2 class="game-modal-title" id="gameModalTitle">Congratulations!</h2>
+                <p class="game-modal-message" id="gameModalMessage">You got them all right!</p>
+                <div class="game-modal-stats">
+                    <div class="game-modal-stat">
+                        <div class="game-modal-stat-value" id="modalCorrect">8</div>
+                        <div class="game-modal-stat-label">Correct</div>
+                    </div>
+                    <div class="game-modal-stat">
+                        <div class="game-modal-stat-value" id="modalScore">0</div>
+                        <div class="game-modal-stat-label">Points</div>
+                    </div>
+                    <div class="game-modal-stat">
+                        <div class="game-modal-stat-value" id="modalTime">0s</div>
+                        <div class="game-modal-stat-label">Time</div>
+                    </div>
+                </div>
+                <div class="game-modal-mistakes" id="gameModalMistakes" style="display:none;">
+                    <h4>Missed species:</h4>
+                    <div id="mistakesList"></div>
+                </div>
+                <div class="game-modal-actions">
+                    <button class="btn-primary" onclick="startGame()">
+                        <i class="fas fa-redo"></i> Play again
+                    </button>
+                    <button class="btn-secondary" onclick="closeGameModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIG ---
+        const BIOMA_ID = '{{ bioma_id }}';
+        const BIOMA_COR = '{{ bioma.cor }}';
+
+        // --- STATE ---
+        let allMuralData = {};
+        let currentMuralId = null;
+        let currentMuralData = [];
+        let currentPlayingBird = null;
+        let isGameMode = false;
+        let isPresentationMode = false;
+        let gameState = {};
+
+        const muralAudio = document.getElementById('muralAudio');
+        const muralContainer = document.getElementById('muralContainer');
+        const muralBackground = document.getElementById('muralBackground');
+
+        // --- INIT ---
+        async function initMural() {
+            try {
+                const res = await fetch(`/api/bioma/${BIOMA_ID}/mural`);
+                allMuralData = await res.json();
+
+                const muralIds = Object.keys(allMuralData);
+                if (muralIds.length === 0) {
+                    document.getElementById('muralInstructions').innerHTML =
+                        '<i class="fas fa-info-circle"></i> No mural available for this biome';
+                    return;
+                }
+
+                if (muralIds.length > 1) {
+                    renderMuralSelector(muralIds);
+                }
+
+                selectMural(muralIds[0]);
+            } catch (err) {
+                console.error('Erro ao carregar mural:', err);
+            }
+        }
+
+        function renderMuralSelector(muralIds) {
+            const container = document.getElementById('muralSelector');
+            container.innerHTML = '';
+            muralIds.forEach(id => {
+                const btn = document.createElement('button');
+                btn.className = 'mural-selector-btn';
+                btn.dataset.muralId = id;
+                const name = id.replace(/_/g, ' ');
+                const count = allMuralData[id].length;
+                btn.innerHTML = `<i class="fas fa-tree"></i> ${name} <span class="species-count">${count}</span>`;
+                btn.onclick = () => selectMural(id);
+                container.appendChild(btn);
+            });
+        }
+
+        function selectMural(muralId) {
+            // Stop current audio
+            muralAudio.pause();
+            muralAudio.currentTime = 0;
+            if (currentPlayingBird) {
+                currentPlayingBird.classList.remove('playing');
+                currentPlayingBird = null;
+            }
+
+            // End game if active
+            if (gameState.active) {
+                endGame(false);
+            }
+
+            currentMuralId = muralId;
+            currentMuralData = allMuralData[muralId] || [];
+
+            // Update selector buttons
+            document.querySelectorAll('.mural-selector-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.muralId === muralId);
+            });
+
+            // Set background
+            const bgImg = muralBackground;
+            bgImg.onerror = function() {
+                // Try jpg
+                this.src = `/species-image/${BIOMA_ID}/fundo_${muralId}.jpg`;
+                this.onerror = function() {
+                    this.style.display = 'none';
+                };
+            };
+            bgImg.src = `/species-image/${BIOMA_ID}/fundo_${muralId}.png`;
+            bgImg.style.display = 'block';
+
+            // Remove existing birds
+            muralContainer.querySelectorAll('.mural-species').forEach(el => el.remove());
+
+            // Render birds
+            renderMuralBirds();
+        }
+
+        function renderMuralBirds() {
+            currentMuralData.forEach((bird, index) => {
+                const el = document.createElement('div');
+                el.className = `mural-species size-${bird.size || 'medium'}`;
+                el.style.left = `${bird.x}%`;
+                el.style.top = `${bird.y}%`;
+                el.style.zIndex = bird.layer || 1;
+                el.style.transform = 'translate(-50%, -50%)';
+                if (bird.customWidth) {
+                    el.style.width = `${bird.customWidth}px`;
+                    el.style.height = `${bird.customWidth}px`;
+                }
+                el.dataset.index = index;
+
+                const tooltipStyle = (bird.labelX !== undefined && bird.labelY !== undefined)
+                    ? `style="left:${bird.labelX}px; top:${bird.labelY}px; bottom:auto; transform:none;"`
+                    : '';
+
+                el.innerHTML = `
+                    <img src="/species-image/${BIOMA_ID}/${bird.image}" alt="${bird.latinName}" loading="lazy" ${bird.flipped ? 'style="transform: scaleX(-1)"' : ''}>
+                    <div class="mural-tooltip" ${tooltipStyle}>
+                        <div class="latin">${bird.latinName}</div>
+                        <div class="common">${bird.commonName}</div>
+                    </div>
+                    <div class="sound-waves">
+                        <div class="sound-wave"></div>
+                        <div class="sound-wave"></div>
+                        <div class="sound-wave"></div>
+                    </div>
+                `;
+
+                el.onclick = () => handleBirdClick(bird, el, index);
+                muralContainer.appendChild(el);
+            });
+        }
+
+        // --- BIRD CLICK ---
+        function handleBirdClick(bird, element, index) {
+            if (!isGameMode || !gameState.active) {
+                playBirdSound(bird, element);
+                return;
+            }
+
+            // Game mode
+            muralAudio.pause();
+
+            if (bird.latinName === gameState.currentBird.latinName) {
+                // Correct — show label on the bird they clicked
+                element.classList.add('correct');
+                showGameTooltip(element, 3000);
+                setTimeout(() => element.classList.remove('correct'), 2800);
+
+                gameState.correct++;
+                gameState.streak++;
+                let points = 10;
+                if (gameState.streak >= 3) points += 5;
+                gameState.score += points;
+
+                updateHUD();
+                setTimeout(() => nextRound(), 3000);
+            } else {
+                // Wrong — highlight wrong click, show label only on the CORRECT bird
+                element.classList.add('wrong');
+                setTimeout(() => element.classList.remove('wrong'), 600);
+
+                gameState.streak = 0;
+                gameState.mistakes.push(gameState.currentBird);
+
+                const correctEl = muralContainer.querySelector(`[data-index="${currentMuralData.indexOf(gameState.currentBird)}"]`);
+                if (correctEl) {
+                    correctEl.classList.add('correct');
+                    showGameTooltip(correctEl, 3000);
+                    setTimeout(() => correctEl.classList.remove('correct'), 2800);
+                }
+
+                updateHUD();
+                setTimeout(() => nextRound(), 3000);
+            }
+        }
+
+        function playBirdSound(bird, element) {
+            // Remove playing from previous
+            if (currentPlayingBird) {
+                currentPlayingBird.classList.remove('playing');
+            }
+
+            // Toggle if same bird
+            if (currentPlayingBird === element && !muralAudio.paused) {
+                muralAudio.pause();
+                currentPlayingBird = null;
+                hideSpeciesOverlay();
+                return;
+            }
+
+            currentPlayingBird = element;
+            element.classList.add('playing');
+            showSpeciesOverlay(bird);
+
+            muralAudio.src = `/audio/${BIOMA_ID}/${bird.audioFile}`;
+            // startTime 0 = início do arquivo
+            muralAudio.currentTime = bird.startTime || 0;
+            muralAudio.play().catch(e => console.log('Audio error:', e));
+        }
+
+        muralAudio.addEventListener('ended', () => {
+            if (currentPlayingBird) {
+                currentPlayingBird.classList.remove('playing');
+                currentPlayingBird = null;
+            }
+            hideSpeciesOverlay();
+        });
+
+        // --- GAME MODE ---
+        function setMode(mode) {
+            isGameMode = mode === 'game';
+            document.getElementById('exploreModeBtn').classList.toggle('active', !isGameMode);
+            document.getElementById('gameModeBtn').classList.toggle('active', isGameMode);
+
+            const hud = document.getElementById('gameHud');
+            const overlay = document.getElementById('gameStartOverlay');
+            const instructions = document.getElementById('muralInstructions');
+            const barCenter = document.getElementById('muralBarCenter');
+
+            if (isGameMode) {
+                barCenter.classList.add('game-active');
+                overlay.classList.add('active');
+                // Hide tooltips
+                muralContainer.querySelectorAll('.mural-tooltip').forEach(t => t.style.display = 'none');
+                resetGame();
+            } else {
+                barCenter.classList.remove('game-active');
+                overlay.classList.remove('active');
+                // Show tooltips
+                muralContainer.querySelectorAll('.mural-tooltip').forEach(t => t.style.display = '');
+                if (gameState.active) endGame(false);
+            }
+
+            // Stop audio
+            muralAudio.pause();
+            if (currentPlayingBird) {
+                currentPlayingBird.classList.remove('playing');
+                currentPlayingBird = null;
+            }
+        }
+
+        function resetGame() {
+            gameState = {
+                active: false,
+                round: 0,
+                totalRounds: Math.min(8, currentMuralData.length),
+                score: 0,
+                correct: 0,
+                streak: 0,
+                mistakes: [],
+                replaysLeft: 2,
+                usedBirds: [],
+                currentBird: null,
+                startTime: null
+            };
+            updateHUD();
+        }
+
+        function startGame() {
+            document.getElementById('gameStartOverlay').classList.remove('active');
+            document.getElementById('gameModal').classList.remove('active');
+            resetGame();
+            gameState.active = true;
+            gameState.startTime = Date.now();
+            nextRound();
+        }
+
+        function nextRound() {
+            if (gameState.round >= gameState.totalRounds) {
+                endGame(true);
+                return;
+            }
+
+            gameState.round++;
+
+            // Pick random unused bird
+            const available = currentMuralData.filter((_, i) => !gameState.usedBirds.includes(i));
+            if (available.length === 0) {
+                endGame(true);
+                return;
+            }
+
+            const randomIdx = Math.floor(Math.random() * available.length);
+            const bird = available[randomIdx];
+            const birdIdx = currentMuralData.indexOf(bird);
+            gameState.usedBirds.push(birdIdx);
+            gameState.currentBird = bird;
+            gameState.replaysLeft = 2;
+
+            updateHUD();
+            playGameSound();
+        }
+
+        function playGameSound() {
+            const bird = gameState.currentBird;
+            muralAudio.src = `/audio/${BIOMA_ID}/${bird.audioFile}`;
+            muralAudio.currentTime = bird.startTime || 0;
+            muralAudio.play().catch(e => console.log('Audio error:', e));
+
+            // Se detectionDuration > 0, auto-stop após essa duração
+            // Se 0, toca o áudio inteiro (sem auto-stop no jogo, para até 15s)
+            const duration = bird.detectionDuration || 0;
+            const maxGamePlay = 15; // máximo de segundos no jogo
+            const endTime = duration > 0
+                ? bird.startTime + duration + 1
+                : (bird.startTime || 0) + maxGamePlay;
+
+            const checkTime = () => {
+                if (muralAudio.currentTime >= endTime) {
+                    muralAudio.pause();
+                    muralAudio.removeEventListener('timeupdate', checkTime);
+                }
+            };
+            muralAudio.addEventListener('timeupdate', checkTime);
+        }
+
+        function replaySound() {
+            if (gameState.replaysLeft <= 0) return;
+            gameState.replaysLeft--;
+            document.getElementById('replayCount').textContent = gameState.replaysLeft;
+            playGameSound();
+        }
+
+        function updateHUD() {
+            document.getElementById('hudRound').textContent = `${gameState.round}/${gameState.totalRounds}`;
+            document.getElementById('hudScore').textContent = gameState.score;
+            document.getElementById('hudStreak').textContent = gameState.streak;
+            document.getElementById('replayCount').textContent = gameState.replaysLeft;
+        }
+
+        function endGame(showModal) {
+            gameState.active = false;
+            muralAudio.pause();
+
+            if (!showModal) return;
+
+            const totalTime = Math.round((Date.now() - gameState.startTime) / 1000);
+            const correct = gameState.correct;
+            const total = gameState.totalRounds;
+            const finalScore = Math.round(gameState.score * 1000 / Math.max(totalTime, 1));
+
+            // Emoji + message
+            let emoji, title, message;
+            if (correct === total) {
+                emoji = '🏆'; title = 'Perfect!'; message = 'You identified every species!';
+            } else if (correct >= total * 0.7) {
+                emoji = '🎉'; title = 'Great job!'; message = 'Excellent bird knowledge!';
+            } else if (correct >= total * 0.4) {
+                emoji = '👍'; title = 'Good work!'; message = 'Keep practicing!';
+            } else {
+                emoji = '🐣'; title = 'Almost there!'; message = 'Explore the mural to learn the songs!';
+            }
+
+            document.getElementById('gameModalEmoji').textContent = emoji;
+            document.getElementById('gameModalTitle').textContent = title;
+            document.getElementById('gameModalMessage').textContent = message;
+            document.getElementById('modalCorrect').textContent = `${correct}/${total}`;
+            document.getElementById('modalScore').textContent = finalScore;
+            document.getElementById('modalTime').textContent = `${totalTime}s`;
+
+            // Mistakes
+            const mistakesEl = document.getElementById('gameModalMistakes');
+            const mistakesList = document.getElementById('mistakesList');
+            if (gameState.mistakes.length > 0) {
+                mistakesEl.style.display = 'block';
+                mistakesList.innerHTML = gameState.mistakes.map(b => `
+                    <div class="mistake-item">
+                        <img src="/species-image/${BIOMA_ID}/${b.image}" alt="${b.latinName}">
+                        <span>${b.latinName} — ${b.commonName}</span>
+                    </div>
+                `).join('');
+            } else {
+                mistakesEl.style.display = 'none';
+            }
+
+            document.getElementById('gameModal').classList.add('active');
+        }
+
+        function closeGameModal() {
+            document.getElementById('gameModal').classList.remove('active');
+            setMode('explore');
+        }
+
+        // --- PRESENTATION MODE ---
+        function togglePresentationMode() {
+            if (isPresentationMode) {
+                exitPresentationMode();
+            } else {
+                enterPresentationMode();
+            }
+        }
+
+        function enterPresentationMode() {
+            isPresentationMode = true;
+            document.body.classList.add('presentation-mode');
+            document.documentElement.requestFullscreen?.().catch(() => {});
+
+            // Briefly show toolbar
+            const toolbar = document.getElementById('muralToolbar');
+            toolbar.classList.add('show');
+            setTimeout(() => toolbar.classList.remove('show'), 2000);
+        }
+
+        function exitPresentationMode() {
+            isPresentationMode = false;
+            document.body.classList.remove('presentation-mode');
+            if (document.fullscreenElement) {
+                document.exitFullscreen?.().catch(() => {});
+            }
+            hideSpeciesOverlay();
+        }
+
+        function showGameTooltip(element, duration) {
+            const tooltip = element.querySelector('.mural-tooltip');
+            if (!tooltip) return;
+            const hasCustomPos = tooltip.style.left && tooltip.style.top;
+            tooltip.style.display = '';
+            tooltip.style.opacity = '1';
+            if (!hasCustomPos) {
+                tooltip.style.transform = 'translateX(-50%) translateY(0)';
+            }
+            setTimeout(() => {
+                tooltip.style.opacity = '';
+                if (!hasCustomPos) tooltip.style.transform = '';
+                if (isGameMode) tooltip.style.display = 'none';
+            }, duration);
+        }
+
+        function showSpeciesOverlay(bird) {
+            if (!isPresentationMode) return;
+            document.getElementById('overlayLatinName').textContent = bird.latinName;
+            document.getElementById('overlayCommonName').textContent = bird.commonName;
+            document.getElementById('speciesNameOverlay').style.display = 'block';
+        }
+
+        function hideSpeciesOverlay() {
+            document.getElementById('speciesNameOverlay').style.display = 'none';
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'f' || e.key === 'F') togglePresentationMode();
+            if (e.key === 'Escape' && isPresentationMode) exitPresentationMode();
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isPresentationMode) {
+                exitPresentationMode();
+            }
+        });
+
+        // --- INIT ON LOAD ---
+        document.addEventListener('DOMContentLoaded', initMural);
+    </script>
+</body>
+</html>

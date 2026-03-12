@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor | {{ bioma.nome }} | {{ title }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+
+    <style>
+        .editor-layout {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        .editor-header {
+            grid-column: 1 / -1;
+            padding: var(--space-sm) var(--space-lg);
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+        }
+
+        .editor-header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+
+        .editor-header-left a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: 6px 12px;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--border);
+            transition: all var(--transition-base);
+        }
+
+        .editor-header-left a:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .editor-header h1 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .editor-header h1 span {
+            color: var(--accent-primary);
+        }
+
+        .editor-header-actions {
+            display: flex;
+            gap: var(--space-sm);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border-radius: var(--radius-full);
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .btn-save {
+            background: var(--gradient-accent);
+            color: var(--bg-deep);
+            border: none;
+            box-shadow: var(--shadow-accent);
+        }
+
+        .btn-save:hover {
+            transform: scale(1.03);
+            box-shadow: var(--shadow-accent-hover);
+        }
+
+        .btn-save:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* --- Sidebar --- */
+        .editor-sidebar {
+            background: var(--bg-dark);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-section {
+            padding: var(--space-md);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-section h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: var(--space-sm);
+        }
+
+        /* Background upload */
+        .bg-upload-area {
+            position: relative;
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            overflow: hidden;
+        }
+
+        .bg-upload-area:hover {
+            border-color: var(--accent-primary);
+            background: rgba(124, 179, 66, 0.05);
+        }
+
+        .bg-upload-area.has-bg {
+            padding: var(--space-xs);
+            border-style: solid;
+        }
+
+        .bg-upload-area img {
+            width: 100%;
+            border-radius: var(--radius-sm);
+            display: block;
+        }
+
+        .bg-upload-area .upload-label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .bg-upload-area .upload-label i {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: var(--space-sm);
+            color: var(--text-secondary);
+        }
+
+        .bg-upload-area input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Species list */
+        .species-list-container {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .species-list-header {
+            padding: var(--space-md);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .species-list-header h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+        }
+
+        .species-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-sm);
+        }
+
+        .species-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            cursor: grab;
+            transition: all var(--transition-fast);
+            margin-bottom: 2px;
+            border: 1px solid transparent;
+        }
+
+        .species-item:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .species-item.placed {
+            opacity: 0.45;
+            border-color: var(--accent-primary);
+        }
+
+        .species-item.selected {
+            background: var(--bg-card);
+            border-color: var(--accent-primary);
+            box-shadow: inset 3px 0 0 var(--accent-primary);
+        }
+
+        .species-item img {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+        }
+
+        .species-item .no-img {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .species-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .species-item-latin {
+            font-size: 0.8rem;
+            font-style: italic;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .species-item-status {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        /* --- Canvas Area --- */
+        .editor-canvas {
+            position: relative;
+            overflow: auto;
+            background: var(--bg-deep);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-lg);
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            max-width: 1200px;
+            width: 100%;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-elevated);
+            background: linear-gradient(180deg, #1a3520 0%, #0d1a10 100%);
+            min-height: 500px;
+        }
+
+        .canvas-wrapper img.canvas-bg {
+            width: 100%;
+            display: block;
+            min-height: 500px;
+            object-fit: cover;
+        }
+
+        .canvas-placeholder {
+            width: 100%;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            gap: var(--space-md);
+        }
+
+        .canvas-placeholder i {
+            font-size: 3rem;
+            color: var(--text-secondary);
+        }
+
+        /* Grid overlay */
+        .canvas-grid {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity var(--transition-base);
+        }
+
+        .canvas-wrapper:hover .canvas-grid,
+        .canvas-wrapper.dragging .canvas-grid {
+            opacity: 1;
+        }
+
+        /* Placed birds on canvas */
+        .canvas-bird {
+            position: absolute;
+            cursor: grab;
+            transition: filter var(--transition-fast);
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));
+        }
+
+        .canvas-bird:hover {
+            filter: drop-shadow(4px 8px 12px rgba(0,0,0,0.6));
+            z-index: 100 !important;
+        }
+
+        .canvas-bird.dragging {
+            cursor: grabbing;
+            z-index: 200 !important;
+            filter: drop-shadow(0 0 15px rgba(124,179,66,0.5));
+        }
+
+        .canvas-bird.selected {
+            outline: 2px solid var(--accent-primary);
+            outline-offset: 4px;
+            border-radius: var(--radius-sm);
+        }
+
+        .canvas-bird img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .canvas-bird.flipped img {
+            transform: scaleX(-1);
+        }
+
+        /* Label no editor — tamanho real igual ao mural */
+        .canvas-bird .bird-label {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 8px 14px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+            pointer-events: none;
+            cursor: grab;
+            backdrop-filter: blur(12px);
+            box-shadow: var(--shadow-card);
+            text-align: center;
+            z-index: 100;
+        }
+
+        .canvas-bird .bird-label .label-latin {
+            font-size: 0.85rem;
+            font-style: italic;
+            color: var(--accent-secondary);
+            font-weight: 500;
+        }
+
+        .canvas-bird .bird-label .label-common {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Posição default (centrado acima) quando não tem offset custom */
+        .canvas-bird .bird-label:not([style*="left"]) {
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .canvas-bird:hover .bird-label,
+        .canvas-bird.selected .bird-label {
+            opacity: 1;
+        }
+
+        .canvas-bird.selected .bird-label {
+            pointer-events: auto;
+            cursor: grab;
+            border-color: var(--accent);
+            box-shadow: 0 0 8px rgba(106,153,78, 0.5);
+        }
+
+        .canvas-bird.selected .bird-label:active {
+            cursor: grabbing;
+        }
+
+        .canvas-bird .bird-label .label-drag-hint {
+            display: none;
+            font-size: 0.55rem;
+            color: var(--accent);
+            opacity: 0.6;
+            margin-top: 2px;
+        }
+
+        .canvas-bird.selected .bird-label .label-drag-hint {
+            display: block;
+        }
+
+        /* Size classes (usados como fallback) */
+        .canvas-bird.size-small { width: 120px; height: 120px; }
+        .canvas-bird.size-medium { width: 180px; height: 180px; }
+        .canvas-bird.size-large { width: 250px; height: 250px; }
+        .canvas-bird.size-xlarge { width: 340px; height: 340px; }
+
+        /* Resize handle */
+        .resize-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            bottom: -4px;
+            right: -4px;
+            background: var(--accent);
+            border: 2px solid var(--bg-primary);
+            border-radius: 3px;
+            cursor: nwse-resize;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+            z-index: 10;
+        }
+        .canvas-bird.selected .resize-handle {
+            opacity: 1;
+        }
+        .resize-handle:hover {
+            background: var(--accent-hover);
+            transform: scale(1.2);
+        }
+
+        /* --- Properties Panel (bottom of sidebar when bird selected) --- */
+        .props-panel {
+            padding: var(--space-md);
+            border-top: 1px solid var(--border);
+            display: none;
+        }
+
+        .props-panel.active {
+            display: block;
+        }
+
+        .props-panel h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: var(--space-sm);
+        }
+
+        .prop-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-sm);
+        }
+
+        .prop-row label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            width: 70px;
+            flex-shrink: 0;
+        }
+
+        .prop-row input {
+            flex: 1;
+            padding: 6px 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.8rem;
+        }
+
+        .prop-row input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .size-toggle {
+            display: flex;
+            gap: 4px;
+        }
+
+        .size-toggle button {
+            flex: 1;
+            padding: 5px 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .size-toggle button.active {
+            background: var(--accent-primary);
+            color: var(--bg-deep);
+            border-color: var(--accent-primary);
+        }
+
+        .size-toggle button:hover:not(.active) {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .btn-remove {
+            width: 100%;
+            margin-top: var(--space-sm);
+            padding: 8px;
+            background: rgba(239, 83, 80, 0.1);
+            border: 1px solid rgba(239, 83, 80, 0.3);
+            border-radius: var(--radius-sm);
+            color: var(--accent-danger);
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-remove:hover {
+            background: rgba(239, 83, 80, 0.2);
+        }
+
+        /* --- Toast --- */
+        .toast {
+            position: fixed;
+            bottom: var(--space-lg);
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--bg-card);
+            border: 1px solid var(--accent-success);
+            border-radius: var(--radius-md);
+            padding: var(--space-md) var(--space-lg);
+            color: var(--accent-success);
+            font-size: 0.9rem;
+            box-shadow: var(--shadow-elevated);
+            z-index: 1000;
+            transition: transform 0.3s var(--ease-out);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.error {
+            border-color: var(--accent-danger);
+            color: var(--accent-danger);
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-layout">
+        <!-- Header -->
+        <header class="editor-header">
+            <div class="editor-header-left">
+                <a href="/"><i class="fas fa-arrow-left"></i> Voltar</a>
+                <h1>Editor de Mural — <span>{{ bioma.nome }}</span></h1>
+            </div>
+            <div class="editor-header-actions">
+                <button class="btn" onclick="exportCSV()">
+                    <i class="fas fa-download"></i> Baixar CSV
+                </button>
+                <button class="btn btn-save" id="saveBtn" onclick="saveToServer()">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="editor-sidebar">
+            <!-- Background upload -->
+            <div class="sidebar-section">
+                <h3><i class="fas fa-image"></i> Fundo do Mural</h3>
+                <div class="bg-upload-area" id="bgUploadArea">
+                    <div class="upload-label" id="bgUploadLabel">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        Clique ou arraste uma imagem
+                    </div>
+                    <input type="file" id="bgFileInput" accept="image/*">
+                </div>
+            </div>
+
+            <!-- Species list -->
+            <div class="species-list-container">
+                <div class="species-list-header">
+                    <h3><i class="fas fa-dove"></i> Espécies disponíveis</h3>
+                </div>
+                <div class="species-list" id="speciesList">
+                    <div style="padding: var(--space-lg); text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                        Carregando...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Properties panel -->
+            <div class="props-panel" id="propsPanel">
+                <h3><i class="fas fa-sliders-h"></i> Propriedades</h3>
+                <div class="prop-row">
+                    <label>Nome popular</label>
+                    <input type="text" id="propCommonName" placeholder="Nome popular">
+                </div>
+                <div class="prop-row">
+                    <label>Tamanho</label>
+                    <div class="size-toggle" id="sizeToggle">
+                        <button data-size="small" onclick="setSize('small')">P</button>
+                        <button data-size="medium" onclick="setSize('medium')">M</button>
+                        <button data-size="large" onclick="setSize('large')">G</button>
+                        <button data-size="xlarge" onclick="setSize('xlarge')">GG</button>
+                    </div>
+                </div>
+                <div class="prop-row">
+                    <label>Flip</label>
+                    <div class="size-toggle">
+                        <button id="flipBtn" onclick="toggleFlip()" title="Flip horizontal">
+                            <i class="fas fa-arrows-alt-h"></i> Flip H
+                        </button>
+                    </div>
+                </div>
+                <div class="prop-row">
+                    <label>Camada</label>
+                    <input type="number" id="propLayer" min="1" max="10" value="1" onchange="setLayer(this.value)">
+                </div>
+                <button class="btn-remove" onclick="removeSelected()">
+                    <i class="fas fa-trash"></i> Remover do mural
+                </button>
+            </div>
+        </aside>
+
+        <!-- Canvas -->
+        <div class="editor-canvas" id="editorCanvas">
+            <div class="canvas-wrapper" id="canvasWrapper">
+                <div class="canvas-placeholder" id="canvasPlaceholder">
+                    <i class="fas fa-image"></i>
+                    <p>Carregue uma imagem de fundo na barra lateral</p>
+                    <p style="font-size: 0.75rem;">Ou clique no mural para posicionar aves sem fundo</p>
+                </div>
+                <!-- Grid SVG overlay -->
+                <svg class="canvas-grid" width="100%" height="100%">
+                    <defs>
+                        <pattern id="grid" width="10%" height="10%" patternUnits="userSpaceOnUse"
+                                 patternContentUnits="objectBoundingBox" viewBox="0 0 0.1 0.1">
+                            <line x1="0" y1="0" x2="0" y2="0.1" stroke="rgba(124,179,66,0.15)" stroke-width="0.001"/>
+                            <line x1="0" y1="0" x2="0.1" y2="0" stroke="rgba(124,179,66,0.15)" stroke-width="0.001"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toastMessage">Salvo com sucesso!</span>
+    </div>
+
+    <script>
+        const BIOMA_ID = '{{ bioma_id }}';
+
+        // State
+        let allSpecies = [];          // from API
+        let placedBirds = [];         // {latinName, commonName, x, y, size, layer, mural, image}
+        let selectedBirdIndex = null;
+        let dragState = null;
+        let bgLoaded = false;
+
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const canvasPlaceholder = document.getElementById('canvasPlaceholder');
+
+        // --- INIT ---
+        async function init() {
+            // Load species
+            const res = await fetch(`/api/editor/${BIOMA_ID}/species`);
+            allSpecies = await res.json();
+
+            // Load existing positions
+            const existingRes = await fetch(`/api/editor/${BIOMA_ID}/existing`);
+            const existing = await existingRes.json();
+
+            // Merge existing with species data
+            existing.forEach(ex => {
+                const sp = allSpecies.find(s => s.latinName === ex.latinName);
+                if (sp) {
+                    const bird = {
+                        latinName: ex.latinName,
+                        commonName: ex.commonName,
+                        x: ex.x,
+                        y: ex.y,
+                        size: ex.size,
+                        layer: ex.layer,
+                        mural: ex.mural,
+                        image: sp.image,
+                        flipped: !!ex.flipped
+                    };
+                    if (ex.customWidth) bird.customWidth = ex.customWidth;
+                    if (ex.labelX !== undefined) bird.labelX = ex.labelX;
+                    if (ex.labelY !== undefined) bird.labelY = ex.labelY;
+                    placedBirds.push(bird);
+                }
+            });
+
+            renderSpeciesList();
+            renderCanvasBirds();
+            tryLoadBackground();
+        }
+
+        function tryLoadBackground() {
+            // Try loading existing background
+            const img = new Image();
+            img.onload = () => setBackground(img.src);
+            img.onerror = () => {
+                // Try jpg
+                const img2 = new Image();
+                img2.onload = () => setBackground(img2.src);
+                img2.src = `/species-image/${BIOMA_ID}/fundo_default.jpg`;
+            };
+            img.src = `/species-image/${BIOMA_ID}/fundo_default.png`;
+        }
+
+        function setBackground(src) {
+            canvasPlaceholder.style.display = 'none';
+
+            let bgImg = canvasWrapper.querySelector('img.canvas-bg');
+            if (!bgImg) {
+                bgImg = document.createElement('img');
+                bgImg.className = 'canvas-bg';
+                canvasWrapper.prepend(bgImg);
+            }
+            bgImg.src = src;
+            bgLoaded = true;
+
+            // Update sidebar preview
+            const area = document.getElementById('bgUploadArea');
+            area.classList.add('has-bg');
+            area.querySelector('#bgUploadLabel').innerHTML = `<img src="${src}" alt="Fundo">`;
+        }
+
+        // --- BACKGROUND UPLOAD ---
+        document.getElementById('bgFileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('mural', 'default');
+
+            try {
+                const res = await fetch(`/api/editor/${BIOMA_ID}/upload-background`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    setBackground(`/species-image/${BIOMA_ID}/${data.filename}?t=${Date.now()}`);
+                    showToast('Fundo carregado!');
+                } else {
+                    showToast(data.error || 'Erro ao carregar fundo', true);
+                }
+            } catch (err) {
+                showToast('Erro ao carregar fundo', true);
+            }
+        });
+
+        // --- SPECIES LIST ---
+        function renderSpeciesList() {
+            const list = document.getElementById('speciesList');
+            if (allSpecies.length === 0) {
+                list.innerHTML = `<div style="padding: var(--space-lg); text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                    Nenhum áudio encontrado em sons/${BIOMA_ID}/
+                </div>`;
+                return;
+            }
+
+            list.innerHTML = allSpecies.map((sp, i) => {
+                const isPlaced = placedBirds.some(b => b.latinName === sp.latinName);
+                const imgHtml = sp.image
+                    ? `<img src="/species-image/${BIOMA_ID}/${sp.image}" alt="${sp.latinName}">`
+                    : `<div class="no-img"><i class="fas fa-dove"></i></div>`;
+
+                return `
+                    <div class="species-item ${isPlaced ? 'placed' : ''}"
+                         data-latin="${sp.latinName}" data-index="${i}"
+                         onclick="onSpeciesClick('${sp.latinName}')">
+                        ${imgHtml}
+                        <div class="species-item-info">
+                            <div class="species-item-latin">${sp.latinName}</div>
+                            <div class="species-item-status">
+                                ${!sp.hasImage ? '⚠️ sem imagem' : ''}
+                                ${isPlaced ? '✅ posicionada' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function onSpeciesClick(latinName) {
+            const existingIdx = placedBirds.findIndex(b => b.latinName === latinName);
+            if (existingIdx >= 0) {
+                // Select it
+                selectBird(existingIdx);
+                return;
+            }
+
+            // Place new bird at center
+            const sp = allSpecies.find(s => s.latinName === latinName);
+            if (!sp || !sp.image) {
+                showToast('Espécie sem imagem — adicione a imagem primeiro', true);
+                return;
+            }
+
+            placedBirds.push({
+                latinName: sp.latinName,
+                commonName: '',
+                x: 50,
+                y: 50,
+                size: 'medium',
+                layer: 1,
+                mural: 'default',
+                image: sp.image,
+                flipped: false
+            });
+
+            renderSpeciesList();
+            renderCanvasBirds();
+            selectBird(placedBirds.length - 1);
+        }
+
+        // --- CANVAS BIRDS ---
+        function renderCanvasBirds() {
+            // Remove existing
+            canvasWrapper.querySelectorAll('.canvas-bird').forEach(el => el.remove());
+
+            placedBirds.forEach((bird, idx) => {
+                const el = document.createElement('div');
+                el.className = `canvas-bird size-${bird.size}${bird.flipped ? ' flipped' : ''}`;
+                el.style.left = `${bird.x}%`;
+                el.style.top = `${bird.y}%`;
+                el.style.transform = 'translate(-50%, -50%)';
+                el.style.zIndex = bird.layer;
+                el.dataset.index = idx;
+
+                // Se tem tamanho custom em px, usar inline style
+                if (bird.customWidth) {
+                    el.style.width = `${bird.customWidth}px`;
+                    el.style.height = `${bird.customWidth}px`;
+                }
+
+                // Label com offset custom ou default
+                const labelStyle = (bird.labelX !== undefined && bird.labelY !== undefined)
+                    ? `left:${bird.labelX}px; top:${bird.labelY}px;`
+                    : '';
+
+                const commonDisplay = bird.commonName || 'sem nome popular';
+
+                el.innerHTML = `
+                    <img src="/species-image/${BIOMA_ID}/${bird.image}" alt="${bird.latinName}">
+                    <div class="bird-label" ${labelStyle ? `style="${labelStyle}"` : ''}>
+                        <div class="label-latin">${bird.latinName}</div>
+                        <div class="label-common">${commonDisplay}</div>
+                    </div>
+                    <div class="resize-handle" data-index="${idx}"></div>
+                `;
+
+                // Label drag handler
+                const label = el.querySelector('.bird-label');
+                label.addEventListener('mousedown', (e) => {
+                    if (selectedBirdIndex !== idx) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startLabelDrag(e, idx, label, el);
+                });
+
+                // Resize handler
+                const resizeHandle = el.querySelector('.resize-handle');
+                resizeHandle.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startResize(e, idx, el);
+                });
+
+                // Drag handlers
+                el.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('resize-handle')) return;
+                    if (e.target.classList.contains('bird-label')) return;
+                    startDrag(e, idx);
+                });
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectBird(idx);
+                });
+
+                if (idx === selectedBirdIndex) {
+                    el.classList.add('selected');
+                }
+
+                canvasWrapper.appendChild(el);
+            });
+        }
+
+        // --- DRAG ---
+        function startDrag(e, birdIdx) {
+            e.preventDefault();
+            selectBird(birdIdx);
+
+            const rect = canvasWrapper.getBoundingClientRect();
+            const bird = placedBirds[birdIdx];
+
+            dragState = {
+                birdIdx,
+                startMouseX: e.clientX,
+                startMouseY: e.clientY,
+                startX: bird.x,
+                startY: bird.y,
+                rect
+            };
+
+            canvasWrapper.classList.add('dragging');
+            const el = canvasWrapper.querySelector(`[data-index="${birdIdx}"]`);
+            if (el) el.classList.add('dragging');
+
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', endDrag);
+        }
+
+        function onDrag(e) {
+            if (!dragState) return;
+
+            const dx = e.clientX - dragState.startMouseX;
+            const dy = e.clientY - dragState.startMouseY;
+
+            const pctX = (dx / dragState.rect.width) * 100;
+            const pctY = (dy / dragState.rect.height) * 100;
+
+            const newX = Math.max(0, Math.min(100, dragState.startX + pctX));
+            const newY = Math.max(0, Math.min(100, dragState.startY + pctY));
+
+            placedBirds[dragState.birdIdx].x = newX;
+            placedBirds[dragState.birdIdx].y = newY;
+
+            const el = canvasWrapper.querySelector(`[data-index="${dragState.birdIdx}"]`);
+            if (el) {
+                el.style.left = `${newX}%`;
+                el.style.top = `${newY}%`;
+            }
+        }
+
+        function endDrag() {
+            if (dragState) {
+                const el = canvasWrapper.querySelector(`[data-index="${dragState.birdIdx}"]`);
+                if (el) el.classList.remove('dragging');
+                canvasWrapper.classList.remove('dragging');
+            }
+            dragState = null;
+            document.removeEventListener('mousemove', onDrag);
+            document.removeEventListener('mouseup', endDrag);
+        }
+
+        // --- LABEL DRAG ---
+        let labelDragState = null;
+
+        function startLabelDrag(e, birdIdx, labelEl, parentEl) {
+            const bird = placedBirds[birdIdx];
+            const parentRect = parentEl.getBoundingClientRect();
+
+            // Posição atual do label relativo ao parent
+            const currentX = bird.labelX !== undefined ? bird.labelX : (parentEl.offsetWidth / 2 - labelEl.offsetWidth / 2);
+            const currentY = bird.labelY !== undefined ? bird.labelY : (-labelEl.offsetHeight - 6);
+
+            labelDragState = {
+                birdIdx,
+                labelEl,
+                parentEl,
+                startMouseX: e.clientX,
+                startMouseY: e.clientY,
+                startX: currentX,
+                startY: currentY
+            };
+
+            document.addEventListener('mousemove', onLabelDrag);
+            document.addEventListener('mouseup', endLabelDrag);
+        }
+
+        function onLabelDrag(e) {
+            if (!labelDragState) return;
+
+            const dx = e.clientX - labelDragState.startMouseX;
+            const dy = e.clientY - labelDragState.startMouseY;
+
+            const newX = labelDragState.startX + dx;
+            const newY = labelDragState.startY + dy;
+
+            labelDragState.labelEl.style.left = `${newX}px`;
+            labelDragState.labelEl.style.top = `${newY}px`;
+
+            placedBirds[labelDragState.birdIdx].labelX = Math.round(newX);
+            placedBirds[labelDragState.birdIdx].labelY = Math.round(newY);
+        }
+
+        function endLabelDrag() {
+            labelDragState = null;
+            document.removeEventListener('mousemove', onLabelDrag);
+            document.removeEventListener('mouseup', endLabelDrag);
+        }
+
+        // --- RESIZE ---
+        let resizeState = null;
+
+        function startResize(e, birdIdx, el) {
+            selectBird(birdIdx);
+            const currentWidth = el.offsetWidth;
+
+            resizeState = {
+                birdIdx,
+                startMouseX: e.clientX,
+                startMouseY: e.clientY,
+                startWidth: currentWidth,
+                el
+            };
+
+            document.addEventListener('mousemove', onResize);
+            document.addEventListener('mouseup', endResize);
+        }
+
+        function onResize(e) {
+            if (!resizeState) return;
+
+            const dx = e.clientX - resizeState.startMouseX;
+            const dy = e.clientY - resizeState.startMouseY;
+            const delta = Math.max(dx, dy);
+
+            const newWidth = Math.max(50, Math.min(600, resizeState.startWidth + delta));
+
+            resizeState.el.style.width = `${newWidth}px`;
+            resizeState.el.style.height = `${newWidth}px`;
+
+            placedBirds[resizeState.birdIdx].customWidth = Math.round(newWidth);
+
+            // Remove preset size class, preserve flipped
+            const isFlipped = placedBirds[resizeState.birdIdx].flipped;
+            resizeState.el.className = `canvas-bird selected${isFlipped ? ' flipped' : ''}`;
+
+            // Atualizar label de tamanho no painel
+            document.querySelectorAll('#sizeToggle button').forEach(btn => btn.classList.remove('active'));
+        }
+
+        function endResize() {
+            resizeState = null;
+            document.removeEventListener('mousemove', onResize);
+            document.removeEventListener('mouseup', endResize);
+        }
+
+        // --- SELECTION & PROPERTIES ---
+        function selectBird(idx) {
+            selectedBirdIndex = idx;
+            const bird = placedBirds[idx];
+
+            // Update canvas
+            canvasWrapper.querySelectorAll('.canvas-bird').forEach((el, i) => {
+                el.classList.toggle('selected', i === idx);
+            });
+
+            // Update sidebar
+            document.querySelectorAll('.species-item').forEach(el => {
+                el.classList.toggle('selected', el.dataset.latin === bird.latinName);
+            });
+
+            // Show props
+            const panel = document.getElementById('propsPanel');
+            panel.classList.add('active');
+            document.getElementById('propCommonName').value = bird.commonName || '';
+            document.getElementById('propLayer').value = bird.layer || 1;
+
+            document.querySelectorAll('#sizeToggle button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.size === bird.size);
+            });
+
+            document.getElementById('flipBtn').classList.toggle('active', !!bird.flipped);
+
+            // Listen for common name changes — atualiza label em tempo real
+            document.getElementById('propCommonName').oninput = (e) => {
+                placedBirds[idx].commonName = e.target.value;
+                const el = canvasWrapper.querySelector(`[data-index="${idx}"]`);
+                if (el) {
+                    const commonEl = el.querySelector('.label-common');
+                    if (commonEl) commonEl.textContent = e.target.value || 'sem nome popular';
+                }
+            };
+        }
+
+        function deselectAll() {
+            selectedBirdIndex = null;
+            canvasWrapper.querySelectorAll('.canvas-bird').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.species-item').forEach(el => el.classList.remove('selected'));
+            document.getElementById('propsPanel').classList.remove('active');
+        }
+
+        function setSize(size) {
+            if (selectedBirdIndex === null) return;
+            placedBirds[selectedBirdIndex].size = size;
+            delete placedBirds[selectedBirdIndex].customWidth;
+
+            const el = canvasWrapper.querySelector(`[data-index="${selectedBirdIndex}"]`);
+            if (el) {
+                const isFlipped = placedBirds[selectedBirdIndex].flipped;
+                el.className = `canvas-bird size-${size} selected${isFlipped ? ' flipped' : ''}`;
+                el.style.width = '';
+                el.style.height = '';
+            }
+
+            document.querySelectorAll('#sizeToggle button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.size === size);
+            });
+        }
+
+        function toggleFlip() {
+            if (selectedBirdIndex === null) return;
+            placedBirds[selectedBirdIndex].flipped = !placedBirds[selectedBirdIndex].flipped;
+
+            const el = canvasWrapper.querySelector(`[data-index="${selectedBirdIndex}"]`);
+            if (el) el.classList.toggle('flipped');
+
+            const btn = document.getElementById('flipBtn');
+            btn.classList.toggle('active', placedBirds[selectedBirdIndex].flipped);
+        }
+
+        function setLayer(val) {
+            if (selectedBirdIndex === null) return;
+            const layer = parseInt(val) || 1;
+            placedBirds[selectedBirdIndex].layer = layer;
+
+            const el = canvasWrapper.querySelector(`[data-index="${selectedBirdIndex}"]`);
+            if (el) el.style.zIndex = layer;
+        }
+
+        function removeSelected() {
+            if (selectedBirdIndex === null) return;
+            placedBirds.splice(selectedBirdIndex, 1);
+            selectedBirdIndex = null;
+            document.getElementById('propsPanel').classList.remove('active');
+            renderSpeciesList();
+            renderCanvasBirds();
+        }
+
+        // Click on canvas background to deselect
+        document.getElementById('editorCanvas').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('editorCanvas') || e.target === canvasWrapper || e.target.classList.contains('canvas-bg')) {
+                deselectAll();
+            }
+        });
+
+        // Delete key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (selectedBirdIndex !== null && document.activeElement.tagName !== 'INPUT') {
+                    removeSelected();
+                }
+            }
+            if (e.key === 'Escape') {
+                deselectAll();
+            }
+        });
+
+        // --- SAVE / EXPORT ---
+        async function saveToServer() {
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+            try {
+                const res = await fetch(`/api/editor/${BIOMA_ID}/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ species: placedBirds })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showToast(`Salvo! ${placedBirds.length} espécies em mural_sonoro.csv`);
+                } else {
+                    showToast(data.error || 'Erro ao salvar', true);
+                }
+            } catch (err) {
+                showToast('Erro ao salvar', true);
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> Salvar';
+        }
+
+        function exportCSV() {
+            if (placedBirds.length === 0) {
+                showToast('Nenhuma ave posicionada', true);
+                return;
+            }
+
+            let csv = 'Latin name,Common name,X,Y,Size,Custom width,Layer,Mural,Label X,Label Y,Flipped\n';
+            placedBirds.forEach(b => {
+                csv += `${b.latinName},${b.commonName || ''},${b.x.toFixed(1)},${b.y.toFixed(1)},${b.size},${b.customWidth || ''},${b.layer},${b.mural},${b.labelX !== undefined ? b.labelX : ''},${b.labelY !== undefined ? b.labelY : ''},${b.flipped ? '1' : ''}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mural_sonoro_${BIOMA_ID}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('CSV exportado!');
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const icon = toast.querySelector('i');
+            document.getElementById('toastMessage').textContent = msg;
+
+            toast.classList.toggle('error', isError);
+            icon.className = isError ? 'fas fa-exclamation-circle' : 'fas fa-check-circle';
+
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // --- START ---
+        init();
+    </script>
+</body>
+</html>
