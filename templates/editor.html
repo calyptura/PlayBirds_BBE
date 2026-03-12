@@ -338,6 +338,7 @@
             cursor: grab;
             transition: filter var(--transition-fast);
             filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));
+            overflow: visible;
         }
 
         .canvas-bird:hover {
@@ -358,8 +359,11 @@
         }
 
         .canvas-bird img {
-            width: 100%;
-            height: 100%;
+            width: 160%;
+            height: 160%;
+            position: relative;
+            left: -30%;
+            top: -30%;
             object-fit: contain;
             pointer-events: none;
         }
@@ -433,11 +437,11 @@
             display: block;
         }
 
-        /* Size classes (usados como fallback) */
-        .canvas-bird.size-small { width: 120px; height: 120px; }
-        .canvas-bird.size-medium { width: 180px; height: 180px; }
-        .canvas-bird.size-large { width: 250px; height: 250px; }
-        .canvas-bird.size-xlarge { width: 340px; height: 340px; }
+        /* Size classes - hitbox matches mural (62% of visual) */
+        .canvas-bird.size-small { width: 75px; height: 75px; }
+        .canvas-bird.size-medium { width: 110px; height: 110px; }
+        .canvas-bird.size-large { width: 155px; height: 155px; }
+        .canvas-bird.size-xlarge { width: 210px; height: 210px; }
 
         /* Resize handle */
         .resize-handle {
@@ -881,10 +885,11 @@
                 el.style.zIndex = bird.layer;
                 el.dataset.index = idx;
 
-                // Se tem tamanho custom em px, usar inline style
+                // Se tem tamanho custom em px, hitbox is 62% of visual
                 if (bird.customWidth) {
-                    el.style.width = `${bird.customWidth}px`;
-                    el.style.height = `${bird.customWidth}px`;
+                    const hitbox = Math.round(bird.customWidth * 0.62);
+                    el.style.width = `${hitbox}px`;
+                    el.style.height = `${hitbox}px`;
                 }
 
                 // Label com offset custom ou default
@@ -1075,7 +1080,8 @@
             resizeState.el.style.width = `${newWidth}px`;
             resizeState.el.style.height = `${newWidth}px`;
 
-            placedBirds[resizeState.birdIdx].customWidth = Math.round(newWidth);
+            // Save visual size (hitbox / 0.62) so mural renders correctly
+            placedBirds[resizeState.birdIdx].customWidth = Math.round(newWidth / 0.62);
 
             // Remove preset size class, preserve flipped
             const isFlipped = placedBirds[resizeState.birdIdx].flipped;
