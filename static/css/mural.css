@@ -248,6 +248,7 @@
     cursor: pointer;
     transition: transform var(--transition-base), filter var(--transition-base);
     filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));
+    overflow: visible;
 }
 
 .mural-species:hover {
@@ -261,16 +262,21 @@
 }
 
 .mural-species img {
-    width: 100%;
-    height: 100%;
+    /* Image is larger than container - overflows visually but hitbox stays small */
+    width: 160%;
+    height: 160%;
+    position: relative;
+    left: -30%;
+    top: -30%;
     object-fit: contain;
     pointer-events: none;
 }
 
-.size-small { width: 120px; height: 120px; }
-.size-medium { width: 180px; height: 180px; }
-.size-large { width: 250px; height: 250px; }
-.size-xlarge { width: 340px; height: 340px; }
+/* Hitbox sizes (smaller than visual) */
+.size-small { width: 75px; height: 75px; }
+.size-medium { width: 110px; height: 110px; }
+.size-large { width: 155px; height: 155px; }
+.size-xlarge { width: 210px; height: 210px; }
 
 /* --- Tooltip --- */
 .mural-tooltip {

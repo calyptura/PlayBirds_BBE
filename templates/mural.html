@@ -243,8 +243,10 @@
                 el.style.zIndex = bird.layer || 1;
                 el.style.transform = 'translate(-50%, -50%)';
                 if (bird.customWidth) {
-                    el.style.width = `${bird.customWidth}px`;
-                    el.style.height = `${bird.customWidth}px`;
+                    // Hitbox is ~62% of visual size (image overflows to 160%)
+                    const hitbox = Math.round(bird.customWidth * 0.62);
+                    el.style.width = `${hitbox}px`;
+                    el.style.height = `${hitbox}px`;
                 }
                 el.dataset.index = index;
 
@@ -265,9 +267,37 @@
                     </div>
                 `;
 
-                el.onclick = () => handleBirdClick(bird, el, index);
                 birdOverlay.appendChild(el);
             });
+
+            // Click handler with proximity detection
+            birdOverlay.onclick = function(e) {
+                const clickX = e.clientX;
+                const clickY = e.clientY;
+                let closest = null;
+                let closestDist = Infinity;
+
+                birdOverlay.querySelectorAll('.mural-species').forEach(el => {
+                    const rect = el.getBoundingClientRect();
+                    // Check if click is within the hitbox
+                    if (clickX >= rect.left && clickX <= rect.right &&
+                        clickY >= rect.top && clickY <= rect.bottom) {
+                        const centerX = rect.left + rect.width / 2;
+                        const centerY = rect.top + rect.height / 2;
+                        const dist = Math.hypot(clickX - centerX, clickY - centerY);
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closest = el;
+                        }
+                    }
+                });
+
+                if (closest) {
+                    const idx = parseInt(closest.dataset.index);
+                    const bird = currentMuralData[idx];
+                    handleBirdClick(bird, closest, idx);
+                }
+            };
 
             updateBirdOverlay();
         }
