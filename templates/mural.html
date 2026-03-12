@@ -374,7 +374,7 @@
             gameState = {
                 active: false,
                 round: 0,
-                totalRounds: Math.min(8, currentMuralData.length),
+                totalRounds: Math.min(6, currentMuralData.length),
                 score: 0,
                 correct: 0,
                 streak: 0,
@@ -470,16 +470,21 @@
             const total = gameState.totalRounds;
             const finalScore = Math.round(gameState.score * 1000 / Math.max(totalTime, 1));
 
-            // Emoji + message
+            // Emoji + message based on performance
             let emoji, title, message;
-            if (correct === total) {
-                emoji = '🏆'; title = 'Perfect!'; message = 'You identified every species!';
-            } else if (correct >= total * 0.7) {
-                emoji = '🎉'; title = 'Great job!'; message = 'Excellent bird knowledge!';
-            } else if (correct >= total * 0.4) {
-                emoji = '👍'; title = 'Good work!'; message = 'Keep practicing!';
+            const pct = correct / total;
+            if (pct === 1) {
+                emoji = '🎓'; title = 'Perfect!';
+                message = 'Which university did you get your PhD in ornithology from? 🎓';
+            } else if (pct >= 0.8) {
+                emoji = '🦜'; title = 'Impressive!';
+                message = 'This one really knows their birds! 🐦';
+            } else if (pct >= 0.5) {
+                emoji = '🌟'; title = 'Very good!';
+                message = 'Congrats! You have a knack for identifying birds. Ever thought about becoming a birdwatcher? 🔭';
             } else {
-                emoji = '🐣'; title = 'Almost there!'; message = 'Explore the mural to learn the songs!';
+                emoji = '👂'; title = 'Hmm...';
+                message = 'Do you need a cotton swab? 😅 Explore the mural to learn the songs!';
             }
 
             document.getElementById('gameModalEmoji').textContent = emoji;
