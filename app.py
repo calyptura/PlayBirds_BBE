@@ -14,7 +14,30 @@ import math
 
 # --- CONFIGURAÇÕES ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_FOLDER = os.path.join(BASE_DIR, 'data')
+
+# Railway Volume: se /app/data existe (volume montado), usa para dados persistentes
+# Caso contrário, usa a pasta local (desenvolvimento)
+RAILWAY_DATA = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '')
+if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
+    DATA_FOLDER = os.path.join(RAILWAY_DATA, 'data')
+    os.makedirs(DATA_FOLDER, exist_ok=True)
+    # Na primeira vez, copiar CSVs do repo para o volume se ainda não existirem
+    REPO_DATA = os.path.join(BASE_DIR, 'data')
+    if os.path.isdir(REPO_DATA):
+        import shutil
+        for item in os.listdir(REPO_DATA):
+            src = os.path.join(REPO_DATA, item)
+            dst = os.path.join(DATA_FOLDER, item)
+            if not os.path.exists(dst):
+                if os.path.isdir(src):
+                    shutil.copytree(src, dst)
+                else:
+                    shutil.copy2(src, dst)
+                print(f"📦 Copiado para volume: {item}")
+    print(f"💾 Usando Railway Volume para dados: {DATA_FOLDER}")
+else:
+    DATA_FOLDER = os.path.join(BASE_DIR, 'data')
+
 SONS_FOLDER = os.path.join(BASE_DIR, 'sons')
 IMAGES_FOLDER = os.path.join(BASE_DIR, 'images')
 
