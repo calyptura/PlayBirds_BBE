@@ -226,6 +226,15 @@
         }
 
         function renderMuralBirds() {
+            // Remove existing bird overlay if any
+            const existingOverlay = muralContainer.querySelector('.bird-overlay');
+            if (existingOverlay) existingOverlay.remove();
+
+            // Create overlay that matches the visible image area
+            const birdOverlay = document.createElement('div');
+            birdOverlay.className = 'bird-overlay';
+            muralContainer.appendChild(birdOverlay);
+
             currentMuralData.forEach((bird, index) => {
                 const el = document.createElement('div');
                 el.className = `mural-species size-${bird.size || 'medium'}`;
@@ -257,8 +266,56 @@
                 `;
 
                 el.onclick = () => handleBirdClick(bird, el, index);
-                muralContainer.appendChild(el);
+                birdOverlay.appendChild(el);
             });
+
+            updateBirdOverlay();
+        }
+
+        function updateBirdOverlay() {
+            const overlay = muralContainer.querySelector('.bird-overlay');
+            if (!overlay) return;
+
+            if (!isPresentationMode) {
+                // Normal mode: overlay matches container exactly
+                overlay.style.position = 'absolute';
+                overlay.style.left = '0';
+                overlay.style.top = '0';
+                overlay.style.width = '100%';
+                overlay.style.height = '100%';
+                return;
+            }
+
+            // Presentation mode: calculate visible area of contain image
+            const img = muralBackground;
+            const containerW = muralContainer.clientWidth;
+            const containerH = muralContainer.clientHeight;
+            const imgNatW = img.naturalWidth || containerW;
+            const imgNatH = img.naturalHeight || containerH;
+
+            const containerRatio = containerW / containerH;
+            const imgRatio = imgNatW / imgNatH;
+
+            let visW, visH, offX, offY;
+            if (imgRatio > containerRatio) {
+                // Image wider than container - letterbox top/bottom
+                visW = containerW;
+                visH = containerW / imgRatio;
+                offX = 0;
+                offY = (containerH - visH) / 2;
+            } else {
+                // Image taller - pillarbox left/right
+                visH = containerH;
+                visW = containerH * imgRatio;
+                offX = (containerW - visW) / 2;
+                offY = 0;
+            }
+
+            overlay.style.position = 'absolute';
+            overlay.style.left = `${offX}px`;
+            overlay.style.top = `${offY}px`;
+            overlay.style.width = `${visW}px`;
+            overlay.style.height = `${visH}px`;
         }
 
         // --- BIRD CLICK ---
@@ -535,6 +592,9 @@
             const toolbar = document.getElementById('muralToolbar');
             toolbar.classList.add('show');
             setTimeout(() => toolbar.classList.remove('show'), 2000);
+
+            // Wait for fullscreen transition then update overlay
+            setTimeout(() => updateBirdOverlay(), 100);
         }
 
         function exitPresentationMode() {
@@ -544,6 +604,7 @@
                 document.exitFullscreen?.().catch(() => {});
             }
             hideSpeciesOverlay();
+            setTimeout(() => updateBirdOverlay(), 100);
         }
 
         function showGameTooltip(element, duration) {
@@ -583,7 +644,10 @@
             if (!document.fullscreenElement && isPresentationMode) {
                 exitPresentationMode();
             }
+            setTimeout(() => updateBirdOverlay(), 150);
         });
+
+        window.addEventListener('resize', () => updateBirdOverlay());
 
         // --- INIT ON LOAD ---
         document.addEventListener('DOMContentLoaded', initMural);
