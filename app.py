@@ -90,8 +90,8 @@ IMAGES_FOLDER = os.path.join(BASE_DIR, 'images')
 
 AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac', '.ogg')
 
-# Default tenant slug (uses flat file structure for backward compat)
 DEFAULT_TENANT = 'bbe'
+MASTER_PASSWORD = os.environ.get('MASTER_PASSWORD', '78767647')
 
 # --- GITHUB API ---
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
@@ -299,13 +299,6 @@ def get_tenant_biomes(tenant_slug):
     return available
 
 
-# --- Legacy BIOMAS dict for backward compat ---
-def _get_legacy_biomas():
-    tenant = tenant_mod.get_tenant(DATA_FOLDER, DEFAULT_TENANT)
-    if tenant:
-        return tenant.get('biomes', {})
-    return {}
-
 
 def sanitize_nan(obj):
     if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
@@ -321,34 +314,71 @@ def create_app():
     app = Flask(__name__,
                 template_folder=os.path.join(BASE_DIR, 'templates'),
                 static_folder=os.path.join(BASE_DIR, 'static'))
+    app.secret_key = os.environ.get('SECRET_KEY', 'playbirds-dev-key-change-in-prod')
 
     # ==========================================
-    # TENANT MANAGEMENT ROUTES
+    # ROOT: MASTER ADMIN (password protected)
     # ==========================================
 
     @app.route('/')
     def index():
-        """Landing page: if multiple tenants exist, show tenant selector.
-        If only the default tenant exists, show the original map page."""
-        all_tenants = tenant_mod.list_tenants(DATA_FOLDER)
-        if len(all_tenants) <= 1:
-            # Single tenant: show original map page
-            biomas = get_tenant_biomes(DEFAULT_TENANT)
-            tenant = tenant_mod.get_tenant(DATA_FOLDER, DEFAULT_TENANT)
-            title = tenant['name'] if tenant else 'PlayBirds BBE'
-            subtitle = tenant['subtitle'] if tenant else ''
-            return render_template('index.html',
-                                   title=title,
-                                   subtitle=subtitle,
-                                   biomas=biomas,
-                                   base_url='',
-                                   tenant_slug=DEFAULT_TENANT)
-        # Multiple tenants: show tenant selector
-        return render_template('tenant_index.html', tenants=all_tenants)
+        """Master admin - tenant management (password protected)."""
+        return render_template('tenants_admin.html')
 
-    # --- TENANT LANDING PAGE ---
+    @app.route('/api/auth/login', methods=['POST'])
+    def api_auth_login():
+        data = request.get_json()
+        if data and data.get('password') == MASTER_PASSWORD:
+            from flask import session
+            session['master_auth'] = True
+            return jsonify({'ok': True})
+        return jsonify({'error': 'Senha incorreta'}), 401
 
-    @app.route('/t/<slug>')
+    @app.route('/api/auth/check')
+    def api_auth_check():
+        from flask import session
+        return jsonify({'authenticated': session.get('master_auth', False)})
+
+    # --- Per-tenant auth ---
+
+    @app.route('/<slug>/api/auth/login', methods=['POST'])
+    def tenant_api_auth_login(slug):
+        """Login to a specific tenant's admin."""
+        tenant = tenant_mod.get_tenant_full(DATA_FOLDER, slug)
+        if not tenant:
+            return jsonify({'error': 'Não encontrado'}), 404
+        tenant_pw = tenant.get('adminPassword', '')
+        if not tenant_pw:
+            # No password set = open access
+            from flask import session
+            session[f'tenant_auth_{slug}'] = True
+            return jsonify({'ok': True})
+        data = request.get_json()
+        if data and data.get('password') == tenant_pw:
+            from flask import session
+            session[f'tenant_auth_{slug}'] = True
+            return jsonify({'ok': True})
+        return jsonify({'error': 'Senha incorreta'}), 401
+
+    @app.route('/<slug>/api/auth/check')
+    def tenant_api_auth_check(slug):
+        tenant = tenant_mod.get_tenant_full(DATA_FOLDER, slug)
+        if not tenant:
+            return jsonify({'error': 'Não encontrado'}), 404
+        tenant_pw = tenant.get('adminPassword', '')
+        if not tenant_pw:
+            return jsonify({'authenticated': True, 'hasPassword': False})
+        from flask import session
+        return jsonify({
+            'authenticated': session.get(f'tenant_auth_{slug}', False),
+            'hasPassword': True
+        })
+
+    # ==========================================
+    # TENANT ROUTES: /<slug>/...
+    # ==========================================
+
+    @app.route('/<slug>')
     def tenant_landing(slug):
         """Tenant landing page with cover image and biome selection."""
         tenant = tenant_mod.get_tenant(DATA_FOLDER, slug)
@@ -358,12 +388,10 @@ def create_app():
         return render_template('tenant_landing.html',
                                tenant=tenant,
                                biomes=biomes,
-                               base_url=f'/t/{slug}',
+                               base_url=f'/{slug}',
                                tenant_slug=slug)
 
-    # --- TENANT-SCOPED MURAL & API ---
-
-    @app.route('/t/<slug>/bioma/<bioma_id>')
+    @app.route('/<slug>/bioma/<bioma_id>')
     def tenant_bioma_page(slug, bioma_id):
         tenant = tenant_mod.get_tenant(DATA_FOLDER, slug)
         if not tenant:
@@ -377,19 +405,19 @@ def create_app():
                                subtitle=tenant.get('subtitle', ''),
                                bioma_id=bioma_id,
                                bioma=bioma_info,
-                               base_url=f'/t/{slug}',
+                               base_url=f'/{slug}',
                                tenant_slug=slug)
 
-    @app.route('/t/<slug>/api/biomas')
+    @app.route('/<slug>/api/biomas')
     def tenant_api_biomas(slug):
         return jsonify(get_tenant_biomes(slug))
 
-    @app.route('/t/<slug>/api/bioma/<bioma_id>/mural')
+    @app.route('/<slug>/api/bioma/<bioma_id>/mural')
     def tenant_api_bioma_mural(slug, bioma_id):
         data = get_bioma_data(slug, bioma_id)
         return jsonify(sanitize_nan(data['mural']))
 
-    @app.route('/t/<slug>/audio/<bioma_id>/<path:filename>')
+    @app.route('/<slug>/audio/<bioma_id>/<path:filename>')
     def tenant_serve_audio(slug, bioma_id, filename):
         audio_folder = get_sons_folder(slug, bioma_id)
         file_path = os.path.join(audio_folder, filename)
@@ -397,18 +425,17 @@ def create_app():
             return "Audio not found", 404
         return _serve_audio_file(file_path, filename)
 
-    @app.route('/t/<slug>/species-image/<bioma_id>/<path:filename>')
+    @app.route('/<slug>/species-image/<bioma_id>/<path:filename>')
     def tenant_serve_species_image(slug, bioma_id, filename):
         bioma_img = get_images_folder(slug, bioma_id)
         if os.path.exists(os.path.join(bioma_img, filename)):
             return send_from_directory(bioma_img, filename)
-        # Fallback to tenant-level images
         tenant_img = get_tenant_images_folder(slug)
         if os.path.exists(os.path.join(tenant_img, filename)):
             return send_from_directory(tenant_img, filename)
         return "Image not found", 404
 
-    @app.route('/t/<slug>/tenant-image/<path:filename>')
+    @app.route('/<slug>/tenant-image/<path:filename>')
     def tenant_serve_tenant_image(slug, filename):
         """Serve tenant-level images (cover, map, etc.)."""
         folder = get_tenant_images_folder(slug)
@@ -418,7 +445,7 @@ def create_app():
 
     # --- TENANT ADMIN ---
 
-    @app.route('/t/<slug>/admin')
+    @app.route('/<slug>/admin')
     def tenant_admin_page(slug):
         tenant = tenant_mod.get_tenant(DATA_FOLDER, slug)
         if not tenant:
@@ -427,10 +454,10 @@ def create_app():
         return render_template('admin.html',
                                title=tenant['name'],
                                biomas=biomes,
-                               base_url=f'/t/{slug}',
+                               base_url=f'/{slug}',
                                tenant_slug=slug)
 
-    @app.route('/t/<slug>/api/admin/status')
+    @app.route('/<slug>/api/admin/status')
     def tenant_api_admin_status(slug):
         tenant = tenant_mod.get_tenant(DATA_FOLDER, slug)
         if not tenant:
@@ -468,7 +495,7 @@ def create_app():
 
     # --- TENANT EDITOR ---
 
-    @app.route('/t/<slug>/editor/<bioma_id>')
+    @app.route('/<slug>/editor/<bioma_id>')
     def tenant_editor_page(slug, bioma_id):
         tenant = tenant_mod.get_tenant(DATA_FOLDER, slug)
         if not tenant:
@@ -480,10 +507,10 @@ def create_app():
                                title=tenant['name'],
                                bioma_id=bioma_id,
                                bioma=biomes[bioma_id],
-                               base_url=f'/t/{slug}',
+                               base_url=f'/{slug}',
                                tenant_slug=slug)
 
-    @app.route('/t/<slug>/api/editor/<bioma_id>/species')
+    @app.route('/<slug>/api/editor/<bioma_id>/species')
     def tenant_api_editor_species(slug, bioma_id):
         audio_map = scan_audio_files(slug, bioma_id)
         species = []
@@ -497,7 +524,7 @@ def create_app():
             })
         return jsonify(species)
 
-    @app.route('/t/<slug>/api/editor/<bioma_id>/existing')
+    @app.route('/<slug>/api/editor/<bioma_id>/existing')
     def tenant_api_editor_existing(slug, bioma_id):
         data_dir = get_data_folder(slug, bioma_id)
         mural_csv = os.path.join(data_dir, 'mural_sonoro.csv')
@@ -530,7 +557,7 @@ def create_app():
                 rows.append(entry)
         return jsonify(rows)
 
-    @app.route('/t/<slug>/api/editor/<bioma_id>/save', methods=['POST'])
+    @app.route('/<slug>/api/editor/<bioma_id>/save', methods=['POST'])
     def tenant_api_editor_save(slug, bioma_id):
         data = request.get_json()
         if not data or 'species' not in data:
@@ -554,7 +581,7 @@ def create_app():
         BIOMA_CACHE.pop(cache_key, None)
         return jsonify({'ok': True, 'path': csv_path})
 
-    @app.route('/t/<slug>/api/editor/<bioma_id>/upload-species', methods=['POST'])
+    @app.route('/<slug>/api/editor/<bioma_id>/upload-species', methods=['POST'])
     def tenant_api_editor_upload_species(slug, bioma_id):
         latin_name = request.form.get('latinName', '').strip()
         if not latin_name:
@@ -610,7 +637,7 @@ def create_app():
         results['latinName'] = standardized
         return jsonify(results)
 
-    @app.route('/t/<slug>/api/editor/<bioma_id>/upload-background', methods=['POST'])
+    @app.route('/<slug>/api/editor/<bioma_id>/upload-background', methods=['POST'])
     def tenant_api_editor_upload_bg(slug, bioma_id):
         if 'file' not in request.files:
             return jsonify({'error': 'Nenhum arquivo enviado'}), 400
@@ -633,7 +660,7 @@ def create_app():
 
     # --- TENANT MAP EDITOR ---
 
-    @app.route('/t/<slug>/editor/mapa')
+    @app.route('/<slug>/editor/mapa')
     def tenant_editor_mapa_page(slug):
         tenant = tenant_mod.get_tenant(DATA_FOLDER, slug)
         if not tenant:
@@ -641,10 +668,10 @@ def create_app():
         return render_template('editor_mapa.html',
                                title=tenant['name'],
                                biomas=tenant.get('biomes', {}),
-                               base_url=f'/t/{slug}',
+                               base_url=f'/{slug}',
                                tenant_slug=slug)
 
-    @app.route('/t/<slug>/api/editor/mapa/save', methods=['POST'])
+    @app.route('/<slug>/api/editor/mapa/save', methods=['POST'])
     def tenant_api_editor_mapa_save(slug):
         data = request.get_json()
         if not data or 'hotspots' not in data:
@@ -664,12 +691,8 @@ def create_app():
         return jsonify({'ok': True})
 
     # ==========================================
-    # MASTER ADMIN: TENANT MANAGEMENT API
+    # MASTER ADMIN API (protected by password)
     # ==========================================
-
-    @app.route('/admin/tenants')
-    def admin_tenants_page():
-        return render_template('tenants_admin.html')
 
     @app.route('/api/tenants', methods=['GET'])
     def api_list_tenants():
@@ -741,8 +764,6 @@ def create_app():
             return jsonify({'ok': True})
         return jsonify({'error': 'Não encontrado'}), 404
 
-    # --- TENANT COVER/MAP IMAGE UPLOAD ---
-
     @app.route('/api/tenants/<slug>/upload-image', methods=['POST'])
     def api_tenant_upload_image(slug):
         """Upload cover or map image for a tenant."""
@@ -766,115 +787,10 @@ def create_app():
         dest_path = os.path.join(dest_folder, filename)
         file.save(dest_path)
 
-        # Update tenant config
         field = 'coverImage' if image_type == 'cover' else 'mapImage'
         tenant_mod.update_tenant(DATA_FOLDER, slug, {field: filename})
 
         return jsonify({'ok': True, 'filename': filename})
-
-    # ==========================================
-    # LEGACY ROUTES (backward compatibility for BBE)
-    # ==========================================
-
-    @app.route('/bioma/<bioma_id>')
-    def bioma_page(bioma_id):
-        biomes = _get_legacy_biomas()
-        if bioma_id not in biomes:
-            return "Bioma não encontrado", 404
-        bioma_info = biomes[bioma_id]
-        tenant = tenant_mod.get_tenant(DATA_FOLDER, DEFAULT_TENANT)
-        return render_template('mural.html',
-                               title=tenant['name'] if tenant else 'PlayBirds BBE',
-                               subtitle=tenant['subtitle'] if tenant else '',
-                               bioma_id=bioma_id,
-                               bioma=bioma_info,
-                               base_url='',
-                               tenant_slug=DEFAULT_TENANT)
-
-    @app.route('/api/biomas')
-    def api_biomas():
-        return jsonify(get_tenant_biomes(DEFAULT_TENANT))
-
-    @app.route('/api/bioma/<bioma_id>/mural')
-    def api_bioma_mural(bioma_id):
-        data = get_bioma_data(DEFAULT_TENANT, bioma_id)
-        return jsonify(sanitize_nan(data['mural']))
-
-    @app.route('/audio/<bioma_id>/<path:filename>')
-    def serve_audio(bioma_id, filename):
-        audio_folder = get_sons_folder(DEFAULT_TENANT, bioma_id)
-        file_path = os.path.join(audio_folder, filename)
-        if not os.path.exists(file_path):
-            return "Audio not found", 404
-        return _serve_audio_file(file_path, filename)
-
-    @app.route('/species-image/<bioma_id>/<path:filename>')
-    def serve_species_image(bioma_id, filename):
-        bioma_img = get_images_folder(DEFAULT_TENANT, bioma_id)
-        if os.path.exists(os.path.join(bioma_img, filename)):
-            return send_from_directory(bioma_img, filename)
-        # Fallback to tenant-level images
-        tenant_img = get_tenant_images_folder(DEFAULT_TENANT)
-        if os.path.exists(os.path.join(tenant_img, filename)):
-            return send_from_directory(tenant_img, filename)
-        return "Image not found", 404
-
-    @app.route('/map-image/<path:filename>')
-    def serve_map_image(filename):
-        return send_from_directory(get_tenant_images_folder(DEFAULT_TENANT), filename)
-
-    @app.route('/admin')
-    def admin_page():
-        return redirect('/admin/tenants')
-
-    @app.route('/api/admin/status')
-    def api_admin_status():
-        return tenant_api_admin_status(DEFAULT_TENANT)
-
-    @app.route('/editor/<bioma_id>')
-    def editor_page(bioma_id):
-        biomes = _get_legacy_biomas()
-        if bioma_id not in biomes:
-            return "Bioma não encontrado", 404
-        return render_template('editor.html',
-                               title='PlayBirds BBE',
-                               bioma_id=bioma_id,
-                               bioma=biomes[bioma_id],
-                               base_url='',
-                               tenant_slug=DEFAULT_TENANT)
-
-    @app.route('/api/editor/<bioma_id>/species')
-    def api_editor_species(bioma_id):
-        return tenant_api_editor_species(DEFAULT_TENANT, bioma_id)
-
-    @app.route('/api/editor/<bioma_id>/existing')
-    def api_editor_existing(bioma_id):
-        return tenant_api_editor_existing(DEFAULT_TENANT, bioma_id)
-
-    @app.route('/api/editor/<bioma_id>/save', methods=['POST'])
-    def api_editor_save(bioma_id):
-        return tenant_api_editor_save(DEFAULT_TENANT, bioma_id)
-
-    @app.route('/api/editor/<bioma_id>/upload-species', methods=['POST'])
-    def api_editor_upload_species(bioma_id):
-        return tenant_api_editor_upload_species(DEFAULT_TENANT, bioma_id)
-
-    @app.route('/api/editor/<bioma_id>/upload-background', methods=['POST'])
-    def api_editor_upload_bg(bioma_id):
-        return tenant_api_editor_upload_bg(DEFAULT_TENANT, bioma_id)
-
-    @app.route('/editor/mapa')
-    def editor_mapa_page():
-        biomes = _get_legacy_biomas()
-        return render_template('editor_mapa.html',
-                               title='PlayBirds BBE',
-                               biomas=biomes,
-                               base_url='',
-                               tenant_slug=DEFAULT_TENANT)
-
-    @app.route('/api/editor/mapa/save', methods=['POST'])
-    def api_editor_mapa_save():
-        return tenant_api_editor_mapa_save(DEFAULT_TENANT)
 
     # ==========================================
     # SHARED UTILITIES

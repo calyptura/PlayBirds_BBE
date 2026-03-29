@@ -151,10 +151,10 @@
 
         <div class="tenant-grid">
             {% for tenant in tenants %}
-            <a href="/t/{{ tenant.slug }}" class="tenant-card" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+            <a href="/{{ tenant.slug }}" class="tenant-card" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
                 <div class="tenant-card-cover" {% if tenant.theme and tenant.theme.primaryColor %}style="background: linear-gradient(135deg, {{ tenant.theme.primaryColor }}44 0%, {{ tenant.theme.primaryColor }}11 100%);"{% endif %}>
                     {% if tenant.coverImage %}
-                    <img src="/t/{{ tenant.slug }}/tenant-image/{{ tenant.coverImage }}" alt="{{ tenant.name }}">
+                    <img src="/{{ tenant.slug }}/tenant-image/{{ tenant.coverImage }}" alt="{{ tenant.name }}">
                     {% else %}
                     <i class="fas fa-feather-alt placeholder-icon"></i>
                     {% endif %}

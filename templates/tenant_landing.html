@@ -293,7 +293,7 @@
         <div class="landing-hero" {% if not tenant.coverImage and tenant.theme %}style="background: linear-gradient(135deg, {{ tenant.theme.primaryColor }}33 0%, var(--bg-deep) 100%);"{% endif %}>
             <!-- Nav -->
             <div class="landing-nav">
-                <a href="/"><i class="fas fa-arrow-left"></i> Projetos</a>
+                <a href="/" style="display: none;"><i class="fas fa-arrow-left"></i> Projetos</a>
             </div>
 
             {% if tenant.coverImage %}
