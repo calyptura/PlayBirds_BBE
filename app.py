@@ -28,14 +28,20 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Railway Volume: se /app/data existe (volume montado), usa para dados persistentes
 RAILWAY_DATA = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '')
 if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
-    DATA_FOLDER = os.path.join(RAILWAY_DATA, 'data')
-    os.makedirs(DATA_FOLDER, exist_ok=True)
-
-    # Migrate old flat structure to new tenant structure on volume
-    # Old: data/caatinga/mural_sonoro.csv -> New: data/bbe/caatinga/mural_sonoro.csv
     import shutil
+
+    # All persistent data goes to the volume
+    DATA_FOLDER = os.path.join(RAILWAY_DATA, 'data')
+    SONS_FOLDER = os.path.join(RAILWAY_DATA, 'sons')
+    IMAGES_FOLDER = os.path.join(RAILWAY_DATA, 'images')
+    os.makedirs(DATA_FOLDER, exist_ok=True)
+    os.makedirs(SONS_FOLDER, exist_ok=True)
+    os.makedirs(IMAGES_FOLDER, exist_ok=True)
+
+    # --- Migration: old flat structure -> tenant structure on volume ---
     _old_biome_ids = ['amazonia', 'caatinga', 'pantanal', 'cerrado', 'mata-atlantica', 'pampa']
-    _migrated = False
+
+    # Migrate data/ (CSVs)
     for _bid in _old_biome_ids:
         _old_dir = os.path.join(DATA_FOLDER, _bid)
         _new_dir = os.path.join(DATA_FOLDER, 'bbe', _bid)
@@ -43,12 +49,33 @@ if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
             os.makedirs(os.path.dirname(_new_dir), exist_ok=True)
             shutil.move(_old_dir, _new_dir)
             print(f"  Migrado volume: data/{_bid}/ -> data/bbe/{_bid}/")
-            _migrated = True
 
-    # Migrate old hotspots.json to tenant config if it exists
+    # Migrate sons/ and images/ (flat biome dirs -> under bbe/)
+    for _folder_path, _folder_name in [(SONS_FOLDER, 'sons'), (IMAGES_FOLDER, 'images')]:
+        for _bid in _old_biome_ids:
+            _old_dir = os.path.join(_folder_path, _bid)
+            _new_dir = os.path.join(_folder_path, 'bbe', _bid)
+            if os.path.isdir(_old_dir) and not os.path.exists(_new_dir):
+                os.makedirs(os.path.join(_folder_path, 'bbe'), exist_ok=True)
+                shutil.move(_old_dir, _new_dir)
+                print(f"  Migrado volume: {_folder_name}/{_bid}/ -> {_folder_name}/bbe/{_bid}/")
+        # Migrate images/mapa/* -> images/bbe/
+        _mapa_dir = os.path.join(_folder_path, 'mapa')
+        if os.path.isdir(_mapa_dir):
+            _bbe_dir = os.path.join(_folder_path, 'bbe')
+            os.makedirs(_bbe_dir, exist_ok=True)
+            for _f in os.listdir(_mapa_dir):
+                _src = os.path.join(_mapa_dir, _f)
+                _dst = os.path.join(_bbe_dir, _f)
+                if not os.path.exists(_dst):
+                    shutil.move(_src, _dst)
+            if not os.listdir(_mapa_dir):
+                os.rmdir(_mapa_dir)
+            print(f"  Migrado volume: {_folder_name}/mapa/ -> {_folder_name}/bbe/")
+
+    # Migrate hotspots.json to tenant config
     _old_hotspots = os.path.join(DATA_FOLDER, 'hotspots.json')
     if os.path.exists(_old_hotspots):
-        # Load and apply to bbe tenant config
         try:
             with open(_old_hotspots, 'r') as _f:
                 _hotspot_data = json.load(_f)
@@ -61,32 +88,32 @@ if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
                         _bbe_cfg['biomes'][_bid].update(_vals)
                 with open(_bbe_config_path, 'w') as _f:
                     json.dump(_bbe_cfg, _f, indent=2, ensure_ascii=False)
-                print(f"  Migrado hotspots.json para tenant bbe config")
             os.rename(_old_hotspots, _old_hotspots + '.bak')
+            print(f"  Migrado hotspots.json para tenant bbe config")
         except Exception as _e:
             print(f"  Aviso: erro ao migrar hotspots: {_e}")
 
-    if _migrated:
-        print("  Migracao do volume concluida!")
+    # --- Copy repo files to volume (only if not already present) ---
+    for _repo_name, _vol_dest in [('data', DATA_FOLDER), ('sons', SONS_FOLDER), ('images', IMAGES_FOLDER)]:
+        _repo_dir = os.path.join(BASE_DIR, _repo_name)
+        if not os.path.isdir(_repo_dir):
+            continue
+        for _root, _dirs, _files in os.walk(_repo_dir):
+            _rel = os.path.relpath(_root, _repo_dir)
+            _dest_dir = os.path.join(_vol_dest, _rel) if _rel != '.' else _vol_dest
+            os.makedirs(_dest_dir, exist_ok=True)
+            for _f in _files:
+                _src = os.path.join(_root, _f)
+                _dst = os.path.join(_dest_dir, _f)
+                if not os.path.exists(_dst):
+                    shutil.copy2(_src, _dst)
+                    print(f"  Copiado para volume: {_repo_name}/{os.path.join(_rel, _f)}")
 
-    # Copy new data from repo to volume if not present
-    REPO_DATA = os.path.join(BASE_DIR, 'data')
-    if os.path.isdir(REPO_DATA):
-        for item in os.listdir(REPO_DATA):
-            src = os.path.join(REPO_DATA, item)
-            dst = os.path.join(DATA_FOLDER, item)
-            if not os.path.exists(dst):
-                if os.path.isdir(src):
-                    shutil.copytree(src, dst)
-                else:
-                    shutil.copy2(src, dst)
-                print(f"  Copiado para volume: {item}")
-    print(f"  Usando Railway Volume para dados: {DATA_FOLDER}")
+    print(f"  Railway Volume: data={DATA_FOLDER} sons={SONS_FOLDER} images={IMAGES_FOLDER}")
 else:
     DATA_FOLDER = os.path.join(BASE_DIR, 'data')
-
-SONS_FOLDER = os.path.join(BASE_DIR, 'sons')
-IMAGES_FOLDER = os.path.join(BASE_DIR, 'images')
+    SONS_FOLDER = os.path.join(BASE_DIR, 'sons')
+    IMAGES_FOLDER = os.path.join(BASE_DIR, 'images')
 
 AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac', '.ogg')
 
