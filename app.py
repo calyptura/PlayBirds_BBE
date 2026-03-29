@@ -30,9 +30,48 @@ RAILWAY_DATA = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '')
 if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
     DATA_FOLDER = os.path.join(RAILWAY_DATA, 'data')
     os.makedirs(DATA_FOLDER, exist_ok=True)
+
+    # Migrate old flat structure to new tenant structure on volume
+    # Old: data/caatinga/mural_sonoro.csv -> New: data/bbe/caatinga/mural_sonoro.csv
+    import shutil
+    _old_biome_ids = ['amazonia', 'caatinga', 'pantanal', 'cerrado', 'mata-atlantica', 'pampa']
+    _migrated = False
+    for _bid in _old_biome_ids:
+        _old_dir = os.path.join(DATA_FOLDER, _bid)
+        _new_dir = os.path.join(DATA_FOLDER, 'bbe', _bid)
+        if os.path.isdir(_old_dir) and not os.path.exists(_new_dir):
+            os.makedirs(os.path.dirname(_new_dir), exist_ok=True)
+            shutil.move(_old_dir, _new_dir)
+            print(f"  Migrado volume: data/{_bid}/ -> data/bbe/{_bid}/")
+            _migrated = True
+
+    # Migrate old hotspots.json to tenant config if it exists
+    _old_hotspots = os.path.join(DATA_FOLDER, 'hotspots.json')
+    if os.path.exists(_old_hotspots):
+        # Load and apply to bbe tenant config
+        try:
+            with open(_old_hotspots, 'r') as _f:
+                _hotspot_data = json.load(_f)
+            _bbe_config_path = os.path.join(DATA_FOLDER, 'tenants', 'bbe.json')
+            if os.path.exists(_bbe_config_path):
+                with open(_bbe_config_path, 'r') as _f:
+                    _bbe_cfg = json.load(_f)
+                for _bid, _vals in _hotspot_data.items():
+                    if _bid in _bbe_cfg.get('biomes', {}):
+                        _bbe_cfg['biomes'][_bid].update(_vals)
+                with open(_bbe_config_path, 'w') as _f:
+                    json.dump(_bbe_cfg, _f, indent=2, ensure_ascii=False)
+                print(f"  Migrado hotspots.json para tenant bbe config")
+            os.rename(_old_hotspots, _old_hotspots + '.bak')
+        except Exception as _e:
+            print(f"  Aviso: erro ao migrar hotspots: {_e}")
+
+    if _migrated:
+        print("  Migracao do volume concluida!")
+
+    # Copy new data from repo to volume if not present
     REPO_DATA = os.path.join(BASE_DIR, 'data')
     if os.path.isdir(REPO_DATA):
-        import shutil
         for item in os.listdir(REPO_DATA):
             src = os.path.join(REPO_DATA, item)
             dst = os.path.join(DATA_FOLDER, item)
