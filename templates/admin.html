@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin | {{ title }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+
+    <style>
+        .admin-layout {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: var(--space-lg);
+        }
+
+        /* Header */
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--space-2xl);
+            padding-bottom: var(--space-lg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .admin-header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+
+        .admin-header-left a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: 6px 12px;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--border);
+            transition: all var(--transition-base);
+        }
+
+        .admin-header-left a:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .admin-header h1 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .admin-header h1 span {
+            color: var(--accent-primary);
+        }
+
+        .admin-tools {
+            display: flex;
+            gap: var(--space-sm);
+        }
+
+        .admin-tools a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border-radius: var(--radius-full);
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        .admin-tools a:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        /* Biome grid */
+        .biomes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .biome-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: all var(--transition-base);
+            animation: fadeInUp 0.4s var(--ease-out) backwards;
+        }
+
+        .biome-card:hover {
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-card-hover);
+            transform: translateY(-2px);
+        }
+
+        .biome-card-header {
+            padding: var(--space-md) var(--space-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .biome-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .biome-card-title {
+            flex: 1;
+        }
+
+        .biome-card-title h2 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .biome-card-title .biome-id {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        /* Stats */
+        .biome-stats {
+            padding: var(--space-md) var(--space-lg);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-sm);
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .stat i {
+            width: 16px;
+            text-align: center;
+            font-size: 0.75rem;
+        }
+
+        .stat .stat-value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .stat.ok i { color: var(--accent-success); }
+        .stat.warn i { color: var(--accent-warm); }
+        .stat.missing i { color: var(--accent-danger); }
+
+        /* Progress bar */
+        .biome-progress {
+            padding: 0 var(--space-lg);
+            margin-bottom: var(--space-sm);
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: var(--bg-dark);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.6s var(--ease-out);
+        }
+
+        /* Actions */
+        .biome-actions {
+            padding: var(--space-md) var(--space-lg);
+            display: flex;
+            gap: var(--space-sm);
+            border-top: 1px solid var(--border);
+        }
+
+        .biome-actions a {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all var(--transition-fast);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .biome-actions a:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+            border-color: var(--border-hover);
+        }
+
+        .biome-actions a.btn-primary {
+            background: var(--gradient-accent);
+            color: var(--bg-deep);
+            border: none;
+        }
+
+        .biome-actions a.btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-accent);
+        }
+
+        /* Loading skeleton */
+        .biome-card.loading .biome-stats,
+        .biome-card.loading .biome-progress {
+            opacity: 0.3;
+        }
+
+        /* Empty state badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-ready {
+            background: rgba(102, 187, 106, 0.15);
+            color: var(--accent-success);
+        }
+
+        .badge-wip {
+            background: rgba(255, 183, 77, 0.15);
+            color: var(--accent-warm);
+        }
+
+        .badge-empty {
+            background: rgba(239, 83, 80, 0.1);
+            color: var(--accent-danger);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <header class="admin-header">
+            <div class="admin-header-left">
+                <a href="/"><i class="fas fa-arrow-left"></i> Site</a>
+                <h1><i class="fas fa-cog" style="color: var(--text-muted); font-size: 1.1rem;"></i> Admin — <span>{{ title }}</span></h1>
+            </div>
+            <div class="admin-tools">
+                <a href="/editor/mapa"><i class="fas fa-map"></i> Editor do Mapa</a>
+            </div>
+        </header>
+
+        <div class="biomes-grid" id="biomesGrid">
+            {% for bioma_id, info in biomas.items() %}
+            <div class="biome-card loading" data-biome="{{ bioma_id }}" style="animation-delay: {{ loop.index0 * 0.08 }}s;">
+                <div class="biome-card-header">
+                    <div class="biome-icon" style="background: {{ info.cor }}22;">
+                        {{ info.icone }}
+                    </div>
+                    <div class="biome-card-title">
+                        <h2>{{ info.nome }}</h2>
+                        <span class="biome-id">{{ bioma_id }}</span>
+                    </div>
+                    <span class="badge" id="badge-{{ bioma_id }}">...</span>
+                </div>
+
+                <div class="biome-stats" id="stats-{{ bioma_id }}">
+                    <div class="stat"><i class="fas fa-music"></i> <span class="stat-value">-</span> sons</div>
+                    <div class="stat"><i class="fas fa-image"></i> <span class="stat-value">-</span> fotos</div>
+                    <div class="stat"><i class="fas fa-map-pin"></i> <span class="stat-value">-</span> posicionadas</div>
+                    <div class="stat"><i class="fas fa-panorama"></i> Fundo: <span class="stat-value">-</span></div>
+                </div>
+
+                <div class="biome-progress" id="progress-{{ bioma_id }}">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%; background: {{ info.cor }};"></div>
+                    </div>
+                </div>
+
+                <div class="biome-actions">
+                    <a href="/editor/{{ bioma_id }}" class="btn-primary">
+                        <i class="fas fa-edit"></i> Editor do Mural
+                    </a>
+                    <a href="/bioma/{{ bioma_id }}">
+                        <i class="fas fa-eye"></i> Ver Mural
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/admin/status');
+                const data = await res.json();
+
+                for (const [biomeId, info] of Object.entries(data)) {
+                    const card = document.querySelector(`[data-biome="${biomeId}"]`);
+                    if (!card) continue;
+
+                    card.classList.remove('loading');
+
+                    // Badge
+                    const badge = document.getElementById(`badge-${biomeId}`);
+                    if (info.totalAudio === 0) {
+                        badge.className = 'badge badge-empty';
+                        badge.textContent = 'vazio';
+                    } else if (info.positioned > 0 && info.hasBackground) {
+                        badge.className = 'badge badge-ready';
+                        badge.textContent = 'pronto';
+                    } else {
+                        badge.className = 'badge badge-wip';
+                        badge.textContent = 'em progresso';
+                    }
+
+                    // Stats
+                    const statsEl = document.getElementById(`stats-${biomeId}`);
+                    const audioClass = info.totalAudio > 0 ? 'ok' : 'missing';
+                    const imgClass = info.totalWithImage >= info.totalAudio && info.totalAudio > 0 ? 'ok' : info.totalWithImage > 0 ? 'warn' : 'missing';
+                    const posClass = info.positioned > 0 ? 'ok' : 'missing';
+                    const bgClass = info.hasBackground ? 'ok' : 'missing';
+
+                    statsEl.innerHTML = `
+                        <div class="stat ${audioClass}"><i class="fas fa-music"></i> <span class="stat-value">${info.totalAudio}</span> sons</div>
+                        <div class="stat ${imgClass}"><i class="fas fa-image"></i> <span class="stat-value">${info.totalWithImage}</span> fotos</div>
+                        <div class="stat ${posClass}"><i class="fas fa-map-pin"></i> <span class="stat-value">${info.positioned}</span> posicionadas</div>
+                        <div class="stat ${bgClass}"><i class="fas fa-panorama"></i> Fundo: <span class="stat-value">${info.hasBackground ? 'sim' : 'nao'}</span></div>
+                    `;
+
+                    // Progress bar: completeness score
+                    const maxSteps = 3; // audio, images, positioned
+                    let completed = 0;
+                    if (info.totalAudio > 0) completed++;
+                    if (info.totalWithImage >= info.totalAudio && info.totalAudio > 0) completed++;
+                    if (info.positioned > 0) completed++;
+                    const pct = Math.round((completed / maxSteps) * 100);
+
+                    const progressEl = document.getElementById(`progress-${biomeId}`);
+                    const fill = progressEl.querySelector('.progress-fill');
+                    setTimeout(() => { fill.style.width = `${pct}%`; }, 200);
+                }
+            } catch (err) {
+                console.error('Error loading status:', err);
+            }
+        }
+
+        loadStatus();
+    </script>
+</body>
+</html>

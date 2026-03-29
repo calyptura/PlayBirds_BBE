@@ -11,6 +11,9 @@ import csv
 import os
 import re
 import math
+import base64
+import urllib.request
+import urllib.error
 
 # --- CONFIGURAÇÕES ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +48,62 @@ PROJECT_TITLE = 'PlayBirds BBE'
 PROJECT_SUBTITLE = 'Biomas Brasileiros em Evidência'
 
 AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac', '.ogg')
+
+# --- GITHUB API ---
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+GITHUB_REPO = os.environ.get('GITHUB_REPO', 'calyptura/PlayBirds_BBE')
+GITHUB_BRANCH = os.environ.get('GITHUB_BRANCH', 'main')
+
+
+def github_commit_file(file_path, file_bytes, commit_message):
+    """Faz commit de um arquivo no GitHub via API.
+    file_path: caminho relativo no repo (ex: 'images/caatinga/Especie.png')
+    file_bytes: conteúdo do arquivo em bytes
+    commit_message: mensagem do commit
+    Retorna True se sucesso, False se falha (ex: sem token configurado).
+    """
+    if not GITHUB_TOKEN:
+        print("   ⚠️ GITHUB_TOKEN nao configurado — arquivo salvo apenas localmente")
+        return False
+
+    import json
+    api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{file_path}"
+
+    # Verificar se o arquivo já existe (precisamos do SHA para atualizar)
+    sha = None
+    get_req = urllib.request.Request(api_url + f'?ref={GITHUB_BRANCH}', headers={
+        'Authorization': f'token {GITHUB_TOKEN}',
+        'Accept': 'application/vnd.github.v3+json'
+    })
+    try:
+        with urllib.request.urlopen(get_req) as resp:
+            existing = json.loads(resp.read())
+            sha = existing.get('sha')
+    except urllib.error.HTTPError:
+        pass  # Arquivo novo
+
+    payload = {
+        'message': commit_message,
+        'content': base64.b64encode(file_bytes).decode('utf-8'),
+        'branch': GITHUB_BRANCH
+    }
+    if sha:
+        payload['sha'] = sha
+
+    data = json.dumps(payload).encode('utf-8')
+    put_req = urllib.request.Request(api_url, data=data, method='PUT', headers={
+        'Authorization': f'token {GITHUB_TOKEN}',
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+    })
+
+    try:
+        with urllib.request.urlopen(put_req) as resp:
+            print(f"   ✅ GitHub commit: {file_path}")
+            return True
+    except urllib.error.HTTPError as e:
+        print(f"   ❌ GitHub erro: {e.code} {e.read().decode()}")
+        return False
 
 # Biomas suportados (adicione novos aqui)
 BIOMAS = {
@@ -353,6 +412,52 @@ def create_app():
         """Serve imagem do mapa de biomas."""
         return send_from_directory(os.path.join(IMAGES_FOLDER, 'mapa'), filename)
 
+    # --- ADMIN ---
+
+    @app.route('/admin')
+    def admin_page():
+        return render_template('admin.html',
+                               title=PROJECT_TITLE,
+                               biomas=BIOMAS)
+
+    @app.route('/api/admin/status')
+    def api_admin_status():
+        """Retorna status detalhado de cada bioma para o painel admin."""
+        status = {}
+        for bioma_id, info in BIOMAS.items():
+            audio_map = scan_audio_files(bioma_id)
+            species_with_image = 0
+            for latin_name in audio_map:
+                if find_species_image(latin_name, bioma_id):
+                    species_with_image += 1
+
+            # Verificar fundo
+            has_bg = False
+            bg_folder = os.path.join(IMAGES_FOLDER, bioma_id)
+            if os.path.isdir(bg_folder):
+                for ext in ['.png', '.jpg', '.jpeg', '.webp']:
+                    if os.path.exists(os.path.join(bg_folder, f'fundo_default{ext}')):
+                        has_bg = True
+                        break
+
+            # Verificar CSV
+            csv_path = os.path.join(DATA_FOLDER, bioma_id, 'mural_sonoro.csv')
+            positioned = 0
+            if os.path.exists(csv_path):
+                with open(csv_path, 'r', encoding='utf-8') as f:
+                    positioned = sum(1 for _ in csv.DictReader(f))
+
+            status[bioma_id] = {
+                'nome': info['nome'],
+                'cor': info['cor'],
+                'icone': info['icone'],
+                'totalAudio': len(audio_map),
+                'totalWithImage': species_with_image,
+                'hasBackground': has_bg,
+                'positioned': positioned
+            }
+        return jsonify(status)
+
     # --- EDITOR DE MURAL ---
 
     @app.route('/editor/<bioma_id>')
@@ -490,6 +595,95 @@ def create_app():
             json.dump(hotspots, f, indent=2)
 
         return jsonify({'ok': True})
+
+    @app.route('/api/editor/<bioma_id>/upload-species', methods=['POST'])
+    def api_editor_upload_species(bioma_id):
+        """Recebe upload de imagem e/ou som de uma espécie, padronizando o nome."""
+        latin_name = request.form.get('latinName', '').strip()
+        if not latin_name:
+            return jsonify({'error': 'Nome científico é obrigatório'}), 400
+
+        # Validar formato: "Genus species" ou "Genus species subspecies"
+        parts = latin_name.split()
+        if len(parts) < 2:
+            return jsonify({'error': 'Nome deve ter pelo menos gênero e espécie (ex: Paroaria dominicana)'}), 400
+
+        # Padronizar: primeira letra maiúscula no gênero, resto minúsculo
+        standardized = parts[0].capitalize() + ' ' + ' '.join(p.lower() for p in parts[1:])
+        file_base = standardized.replace(' ', '_')
+
+        results = {}
+
+        # Upload de imagem
+        if 'image' in request.files and request.files['image'].filename:
+            img_file = request.files['image']
+            ext = os.path.splitext(img_file.filename)[1].lower()
+            if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+                return jsonify({'error': f'Formato de imagem não suportado: {ext} (use jpg, png ou webp)'}), 400
+
+            dest_folder = os.path.join(IMAGES_FOLDER, bioma_id)
+            os.makedirs(dest_folder, exist_ok=True)
+
+            # Remover imagens antigas da mesma espécie
+            for old_ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                old_path = os.path.join(dest_folder, f'{file_base}{old_ext}')
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
+            dest_path = os.path.join(dest_folder, f'{file_base}{ext}')
+            img_bytes = img_file.read()
+            with open(dest_path, 'wb') as f:
+                f.write(img_bytes)
+            results['image'] = f'{file_base}{ext}'
+            print(f"   📸 Imagem salva: {dest_path}")
+
+            # Commit no GitHub
+            github_commit_file(
+                f'images/{bioma_id}/{file_base}{ext}',
+                img_bytes,
+                f'Add image: {standardized} ({bioma_id})'
+            )
+
+        # Upload de som
+        if 'audio' in request.files and request.files['audio'].filename:
+            audio_file = request.files['audio']
+            ext = os.path.splitext(audio_file.filename)[1].lower()
+            if ext not in ['.mp3', '.wav', '.flac', '.ogg']:
+                return jsonify({'error': f'Formato de áudio não suportado: {ext} (use mp3, wav, flac ou ogg)'}), 400
+
+            dest_folder = os.path.join(SONS_FOLDER, bioma_id)
+            os.makedirs(dest_folder, exist_ok=True)
+
+            # Remover áudios antigos da mesma espécie
+            for old_ext in ['.mp3', '.wav', '.flac', '.ogg']:
+                old_path = os.path.join(dest_folder, f'{file_base}{old_ext}')
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
+            dest_path = os.path.join(dest_folder, f'{file_base}{ext}')
+            audio_bytes = audio_file.read()
+            with open(dest_path, 'wb') as f:
+                f.write(audio_bytes)
+            results['audio'] = f'{file_base}{ext}'
+            print(f"   🎵 Áudio salvo: {dest_path}")
+
+            # Commit no GitHub
+            github_commit_file(
+                f'sons/{bioma_id}/{file_base}{ext}',
+                audio_bytes,
+                f'Add audio: {standardized} ({bioma_id})'
+            )
+
+        if not results:
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+
+        # Limpar cache do bioma
+        BIOMA_CACHE.pop(bioma_id, None)
+
+        results['ok'] = True
+        results['latinName'] = standardized
+        results['github'] = bool(GITHUB_TOKEN)
+        return jsonify(results)
 
     @app.route('/api/editor/<bioma_id>/upload-background', methods=['POST'])
     def api_editor_upload_bg(bioma_id):
