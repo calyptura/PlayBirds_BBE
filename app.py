@@ -112,6 +112,18 @@ if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
                     shutil.copy2(_src, _dst)
                     _log(f"Copiado para volume: {_repo_name}/{os.path.join(_rel, _f)}")
 
+    # Cleanup old flat-structure remnants
+    for _bid in _old_biome_ids:
+        _old_dir = os.path.join(DATA_FOLDER, _bid)
+        if os.path.isdir(_old_dir):
+            shutil.rmtree(_old_dir)
+            _log(f"Limpeza: removido data/{_bid}/")
+    for _fname in ['hotspots.json', 'hotspots.json.bak']:
+        _old_file = os.path.join(DATA_FOLDER, _fname)
+        if os.path.exists(_old_file):
+            os.remove(_old_file)
+            _log(f"Limpeza: removido data/{_fname}")
+
     _log(f"Railway Volume: data={DATA_FOLDER} sons={SONS_FOLDER} images={IMAGES_FOLDER}")
 else:
     DATA_FOLDER = os.path.join(BASE_DIR, 'data')
@@ -121,6 +133,31 @@ else:
 AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac', '.ogg')
 
 DEFAULT_TENANT = 'bbe'
+
+
+def _cleanup_old_volume_files():
+    """Remove old flat-structure remnants from the volume."""
+    import shutil
+    old_biome_ids = ['amazonia', 'caatinga', 'pantanal', 'cerrado', 'mata-atlantica', 'pampa']
+    cleaned = []
+
+    # Remove old flat biome dirs in data/ (e.g. data/caatinga/)
+    for bid in old_biome_ids:
+        old_dir = os.path.join(DATA_FOLDER, bid)
+        if os.path.isdir(old_dir):
+            shutil.rmtree(old_dir)
+            cleaned.append(f'data/{bid}/')
+
+    # Remove old hotspots.json and .bak
+    for fname in ['hotspots.json', 'hotspots.json.bak']:
+        old_file = os.path.join(DATA_FOLDER, fname)
+        if os.path.exists(old_file):
+            os.remove(old_file)
+            cleaned.append(f'data/{fname}')
+
+    if cleaned:
+        _log(f"Limpeza: removidos {cleaned}")
+    return cleaned
 MASTER_PASSWORD = os.environ.get('MASTER_PASSWORD', '78767647')
 
 # --- GITHUB API ---
@@ -375,6 +412,10 @@ def create_app():
         from flask import session
         if not session.get('master_auth'):
             return jsonify({'error': 'Não autenticado'}), 401
+
+        # Clean up old structure remnants
+        _cleanup_old_volume_files()
+
         result = {
             'RAILWAY_VOLUME_MOUNT_PATH': RAILWAY_DATA,
             'DATA_FOLDER': DATA_FOLDER,
