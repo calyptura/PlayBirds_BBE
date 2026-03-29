@@ -353,6 +353,52 @@ def create_app():
         """Serve imagem do mapa de biomas."""
         return send_from_directory(os.path.join(IMAGES_FOLDER, 'mapa'), filename)
 
+    # --- ADMIN ---
+
+    @app.route('/admin')
+    def admin_page():
+        return render_template('admin.html',
+                               title=PROJECT_TITLE,
+                               biomas=BIOMAS)
+
+    @app.route('/api/admin/status')
+    def api_admin_status():
+        """Retorna status detalhado de cada bioma para o painel admin."""
+        status = {}
+        for bioma_id, info in BIOMAS.items():
+            audio_map = scan_audio_files(bioma_id)
+            species_with_image = 0
+            for latin_name in audio_map:
+                if find_species_image(latin_name, bioma_id):
+                    species_with_image += 1
+
+            # Verificar fundo
+            has_bg = False
+            bg_folder = os.path.join(IMAGES_FOLDER, bioma_id)
+            if os.path.isdir(bg_folder):
+                for ext in ['.png', '.jpg', '.jpeg', '.webp']:
+                    if os.path.exists(os.path.join(bg_folder, f'fundo_default{ext}')):
+                        has_bg = True
+                        break
+
+            # Verificar CSV
+            csv_path = os.path.join(DATA_FOLDER, bioma_id, 'mural_sonoro.csv')
+            positioned = 0
+            if os.path.exists(csv_path):
+                with open(csv_path, 'r', encoding='utf-8') as f:
+                    positioned = sum(1 for _ in csv.DictReader(f))
+
+            status[bioma_id] = {
+                'nome': info['nome'],
+                'cor': info['cor'],
+                'icone': info['icone'],
+                'totalAudio': len(audio_map),
+                'totalWithImage': species_with_image,
+                'hasBackground': has_bg,
+                'positioned': positioned
+            }
+        return jsonify(status)
+
     # --- EDITOR DE MURAL ---
 
     @app.route('/editor/<bioma_id>')
