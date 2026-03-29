@@ -737,6 +737,59 @@ def create_app():
         results['latinName'] = standardized
         return jsonify(results)
 
+    @app.route('/<slug>/api/editor/<bioma_id>/delete-species', methods=['POST'])
+    def tenant_api_editor_delete_species(slug, bioma_id):
+        """Delete a species' image and audio files."""
+        data = request.get_json()
+        if not data or 'latinName' not in data:
+            return jsonify({'error': 'Nome científico é obrigatório'}), 400
+
+        latin_name = data['latinName'].strip()
+        file_base = latin_name.replace(' ', '_')
+        deleted = []
+
+        # Delete image files
+        img_folder = get_images_folder(slug, bioma_id)
+        if os.path.isdir(img_folder):
+            for ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                path = os.path.join(img_folder, f'{file_base}{ext}')
+                if os.path.exists(path):
+                    os.remove(path)
+                    deleted.append(f'image: {file_base}{ext}')
+
+        # Delete audio files
+        audio_folder = get_sons_folder(slug, bioma_id)
+        if os.path.isdir(audio_folder):
+            for ext in ['.mp3', '.wav', '.flac', '.ogg']:
+                path = os.path.join(audio_folder, f'{file_base}{ext}')
+                if os.path.exists(path):
+                    os.remove(path)
+                    deleted.append(f'audio: {file_base}{ext}')
+
+        # Remove from mural CSV if present
+        data_dir = get_data_folder(slug, bioma_id)
+        csv_path = os.path.join(data_dir, 'mural_sonoro.csv')
+        if os.path.exists(csv_path):
+            rows = []
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                fieldnames = reader.fieldnames
+                rows = [row for row in reader if row['Latin name'] != latin_name]
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            deleted.append('csv entry')
+
+        # Clear cache
+        cache_key = f'{slug}/{bioma_id}'
+        BIOMA_CACHE.pop(cache_key, None)
+
+        if not deleted:
+            return jsonify({'error': 'Espécie não encontrada'}), 404
+
+        return jsonify({'ok': True, 'deleted': deleted, 'latinName': latin_name})
+
     @app.route('/<slug>/api/editor/<bioma_id>/upload-background', methods=['POST'])
     def tenant_api_editor_upload_bg(slug, bioma_id):
         if 'file' not in request.files:

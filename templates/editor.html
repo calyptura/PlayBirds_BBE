@@ -375,6 +375,28 @@
             color: var(--text-muted);
         }
 
+        .btn-delete-species {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: var(--radius-sm);
+            font-size: 0.7rem;
+            opacity: 0;
+            transition: all var(--transition-fast);
+            flex-shrink: 0;
+        }
+
+        .species-item:hover .btn-delete-species {
+            opacity: 1;
+        }
+
+        .btn-delete-species:hover {
+            color: var(--accent-danger);
+            background: rgba(239, 83, 80, 0.1);
+        }
+
         /* --- Canvas Area --- */
         .editor-canvas {
             position: relative;
@@ -958,9 +980,42 @@
                                 ${isPlaced ? '✅ posicionada' : ''}
                             </div>
                         </div>
+                        <button class="btn-delete-species" title="Apagar espécie"
+                                onclick="event.stopPropagation(); deleteSpecies('${sp.latinName}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 `;
             }).join('');
+        }
+
+        async function deleteSpecies(latinName) {
+            if (!confirm(`Apagar "${latinName}"?\n\nIsso remove a imagem, o áudio e a posição no mural. Esta ação não pode ser desfeita.`)) {
+                return;
+            }
+            try {
+                const res = await fetch(`${BASE_URL}/api/editor/${BIOMA_ID}/delete-species`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ latinName })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    // Remove from placed birds
+                    const idx = placedBirds.findIndex(b => b.latinName === latinName);
+                    if (idx >= 0) {
+                        placedBirds.splice(idx, 1);
+                        renderBirds();
+                    }
+                    // Reload species list
+                    await loadData();
+                    deselectAll();
+                } else {
+                    alert(data.error || 'Erro ao apagar espécie');
+                }
+            } catch (err) {
+                alert('Erro de conexão');
+            }
         }
 
         function onSpeciesClick(latinName) {
