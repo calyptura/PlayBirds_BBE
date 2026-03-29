@@ -369,6 +369,35 @@ def create_app():
         from flask import session
         return jsonify({'authenticated': session.get('master_auth', False)})
 
+    @app.route('/api/debug/volume')
+    def api_debug_volume():
+        """List files on the volume for debugging. Requires master auth."""
+        from flask import session
+        if not session.get('master_auth'):
+            return jsonify({'error': 'Não autenticado'}), 401
+        result = {
+            'RAILWAY_VOLUME_MOUNT_PATH': RAILWAY_DATA,
+            'DATA_FOLDER': DATA_FOLDER,
+            'SONS_FOLDER': SONS_FOLDER,
+            'IMAGES_FOLDER': IMAGES_FOLDER,
+            'files': {}
+        }
+        for label, folder in [('data', DATA_FOLDER), ('sons', SONS_FOLDER), ('images', IMAGES_FOLDER)]:
+            tree = []
+            if os.path.isdir(folder):
+                for root, dirs, files in os.walk(folder):
+                    rel = os.path.relpath(root, folder)
+                    for f in files:
+                        fpath = os.path.join(root, f)
+                        size = os.path.getsize(fpath)
+                        tree.append({
+                            'path': os.path.join(rel, f) if rel != '.' else f,
+                            'size': size,
+                            'size_hr': f'{size/1024:.0f}KB' if size < 1048576 else f'{size/1048576:.1f}MB'
+                        })
+            result['files'][label] = tree
+        return jsonify(result)
+
     # --- Per-tenant auth ---
 
     @app.route('/<slug>/api/auth/login', methods=['POST'])
