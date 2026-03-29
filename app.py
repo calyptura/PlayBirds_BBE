@@ -11,6 +11,9 @@ import csv
 import os
 import re
 import math
+import base64
+import urllib.request
+import urllib.error
 
 # --- CONFIGURAÇÕES ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +48,62 @@ PROJECT_TITLE = 'PlayBirds BBE'
 PROJECT_SUBTITLE = 'Biomas Brasileiros em Evidência'
 
 AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac', '.ogg')
+
+# --- GITHUB API ---
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+GITHUB_REPO = os.environ.get('GITHUB_REPO', 'calyptura/PlayBirds_BBE')
+GITHUB_BRANCH = os.environ.get('GITHUB_BRANCH', 'main')
+
+
+def github_commit_file(file_path, file_bytes, commit_message):
+    """Faz commit de um arquivo no GitHub via API.
+    file_path: caminho relativo no repo (ex: 'images/caatinga/Especie.png')
+    file_bytes: conteúdo do arquivo em bytes
+    commit_message: mensagem do commit
+    Retorna True se sucesso, False se falha (ex: sem token configurado).
+    """
+    if not GITHUB_TOKEN:
+        print("   ⚠️ GITHUB_TOKEN nao configurado — arquivo salvo apenas localmente")
+        return False
+
+    import json
+    api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{file_path}"
+
+    # Verificar se o arquivo já existe (precisamos do SHA para atualizar)
+    sha = None
+    get_req = urllib.request.Request(api_url + f'?ref={GITHUB_BRANCH}', headers={
+        'Authorization': f'token {GITHUB_TOKEN}',
+        'Accept': 'application/vnd.github.v3+json'
+    })
+    try:
+        with urllib.request.urlopen(get_req) as resp:
+            existing = json.loads(resp.read())
+            sha = existing.get('sha')
+    except urllib.error.HTTPError:
+        pass  # Arquivo novo
+
+    payload = {
+        'message': commit_message,
+        'content': base64.b64encode(file_bytes).decode('utf-8'),
+        'branch': GITHUB_BRANCH
+    }
+    if sha:
+        payload['sha'] = sha
+
+    data = json.dumps(payload).encode('utf-8')
+    put_req = urllib.request.Request(api_url, data=data, method='PUT', headers={
+        'Authorization': f'token {GITHUB_TOKEN}',
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+    })
+
+    try:
+        with urllib.request.urlopen(put_req) as resp:
+            print(f"   ✅ GitHub commit: {file_path}")
+            return True
+    except urllib.error.HTTPError as e:
+        print(f"   ❌ GitHub erro: {e.code} {e.read().decode()}")
+        return False
 
 # Biomas suportados (adicione novos aqui)
 BIOMAS = {
@@ -572,9 +631,18 @@ def create_app():
                     os.remove(old_path)
 
             dest_path = os.path.join(dest_folder, f'{file_base}{ext}')
-            img_file.save(dest_path)
+            img_bytes = img_file.read()
+            with open(dest_path, 'wb') as f:
+                f.write(img_bytes)
             results['image'] = f'{file_base}{ext}'
             print(f"   📸 Imagem salva: {dest_path}")
+
+            # Commit no GitHub
+            github_commit_file(
+                f'images/{bioma_id}/{file_base}{ext}',
+                img_bytes,
+                f'Add image: {standardized} ({bioma_id})'
+            )
 
         # Upload de som
         if 'audio' in request.files and request.files['audio'].filename:
@@ -593,9 +661,18 @@ def create_app():
                     os.remove(old_path)
 
             dest_path = os.path.join(dest_folder, f'{file_base}{ext}')
-            audio_file.save(dest_path)
+            audio_bytes = audio_file.read()
+            with open(dest_path, 'wb') as f:
+                f.write(audio_bytes)
             results['audio'] = f'{file_base}{ext}'
             print(f"   🎵 Áudio salvo: {dest_path}")
+
+            # Commit no GitHub
+            github_commit_file(
+                f'sons/{bioma_id}/{file_base}{ext}',
+                audio_bytes,
+                f'Add audio: {standardized} ({bioma_id})'
+            )
 
         if not results:
             return jsonify({'error': 'Nenhum arquivo enviado'}), 400
@@ -605,6 +682,7 @@ def create_app():
 
         results['ok'] = True
         results['latinName'] = standardized
+        results['github'] = bool(GITHUB_TOKEN)
         return jsonify(results)
 
     @app.route('/api/editor/<bioma_id>/upload-background', methods=['POST'])

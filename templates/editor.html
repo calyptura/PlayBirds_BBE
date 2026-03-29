@@ -1450,7 +1450,8 @@
                     const parts = [];
                     if (data.image) parts.push('foto');
                     if (data.audio) parts.push('som');
-                    showToast(`${data.latinName}: ${parts.join(' e ')} enviado(s)!`);
+                    const dest = data.github ? ' (salvo no GitHub)' : ' (apenas local)';
+                    showToast(`${data.latinName}: ${parts.join(' e ')} enviado(s)!${dest}`);
 
                     // Limpar formulário
                     document.getElementById('uploadLatinName').value = '';
