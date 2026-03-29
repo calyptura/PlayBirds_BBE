@@ -181,6 +181,108 @@
             cursor: pointer;
         }
 
+        /* Species upload */
+        .species-upload-section {
+            padding: var(--space-md);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .species-upload-section h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: var(--space-sm);
+        }
+
+        .upload-form {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .upload-form input[type="text"] {
+            padding: 8px 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-style: italic;
+        }
+
+        .upload-form input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .upload-file-row {
+            display: flex;
+            gap: var(--space-xs);
+        }
+
+        .upload-file-btn {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 7px 6px;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            overflow: hidden;
+        }
+
+        .upload-file-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--text-secondary);
+            background: rgba(124, 179, 66, 0.05);
+        }
+
+        .upload-file-btn.has-file {
+            border-style: solid;
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .upload-file-btn input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .btn-upload-species {
+            padding: 8px;
+            background: var(--gradient-accent);
+            color: var(--bg-deep);
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-upload-species:hover {
+            transform: scale(1.02);
+        }
+
+        .btn-upload-species:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         /* Species list */
         .species-list-container {
             flex: 1;
@@ -621,6 +723,27 @@
                         Clique ou arraste uma imagem
                     </div>
                     <input type="file" id="bgFileInput" accept="image/*">
+                </div>
+            </div>
+
+            <!-- Species upload -->
+            <div class="species-upload-section">
+                <h3><i class="fas fa-upload"></i> Adicionar Espécie</h3>
+                <div class="upload-form">
+                    <input type="text" id="uploadLatinName" placeholder="Nome científico (ex: Paroaria dominicana)">
+                    <div class="upload-file-row">
+                        <label class="upload-file-btn" id="uploadImgBtn">
+                            <i class="fas fa-image"></i> Foto
+                            <input type="file" id="uploadImgFile" accept="image/jpeg,image/png,image/webp">
+                        </label>
+                        <label class="upload-file-btn" id="uploadAudioBtn">
+                            <i class="fas fa-music"></i> Som
+                            <input type="file" id="uploadAudioFile" accept="audio/mpeg,audio/wav,audio/flac,audio/ogg">
+                        </label>
+                    </div>
+                    <button class="btn-upload-species" id="uploadSpeciesBtn" onclick="uploadSpecies()">
+                        <i class="fas fa-plus"></i> Enviar e padronizar
+                    </button>
                 </div>
             </div>
 
@@ -1266,6 +1389,95 @@
 
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // --- SPECIES UPLOAD ---
+        document.getElementById('uploadImgFile').addEventListener('change', (e) => {
+            const btn = document.getElementById('uploadImgBtn');
+            if (e.target.files[0]) {
+                btn.classList.add('has-file');
+                btn.querySelector('i').className = 'fas fa-check';
+                btn.childNodes[btn.childNodes.length - 1].textContent = ` ${e.target.files[0].name.substring(0, 12)}...`;
+            } else {
+                btn.classList.remove('has-file');
+                btn.querySelector('i').className = 'fas fa-image';
+            }
+        });
+
+        document.getElementById('uploadAudioFile').addEventListener('change', (e) => {
+            const btn = document.getElementById('uploadAudioBtn');
+            if (e.target.files[0]) {
+                btn.classList.add('has-file');
+                btn.querySelector('i').className = 'fas fa-check';
+                btn.childNodes[btn.childNodes.length - 1].textContent = ` ${e.target.files[0].name.substring(0, 12)}...`;
+            } else {
+                btn.classList.remove('has-file');
+                btn.querySelector('i').className = 'fas fa-music';
+            }
+        });
+
+        async function uploadSpecies() {
+            const latinName = document.getElementById('uploadLatinName').value.trim();
+            const imgFile = document.getElementById('uploadImgFile').files[0];
+            const audioFile = document.getElementById('uploadAudioFile').files[0];
+
+            if (!latinName) {
+                showToast('Insira o nome científico', true);
+                return;
+            }
+
+            if (!imgFile && !audioFile) {
+                showToast('Selecione pelo menos uma foto ou som', true);
+                return;
+            }
+
+            const btn = document.getElementById('uploadSpeciesBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+            const formData = new FormData();
+            formData.append('latinName', latinName);
+            if (imgFile) formData.append('image', imgFile);
+            if (audioFile) formData.append('audio', audioFile);
+
+            try {
+                const res = await fetch(`/api/editor/${BIOMA_ID}/upload-species`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    const parts = [];
+                    if (data.image) parts.push('foto');
+                    if (data.audio) parts.push('som');
+                    showToast(`${data.latinName}: ${parts.join(' e ')} enviado(s)!`);
+
+                    // Limpar formulário
+                    document.getElementById('uploadLatinName').value = '';
+                    document.getElementById('uploadImgFile').value = '';
+                    document.getElementById('uploadAudioFile').value = '';
+                    const imgBtn = document.getElementById('uploadImgBtn');
+                    imgBtn.classList.remove('has-file');
+                    imgBtn.querySelector('i').className = 'fas fa-image';
+                    imgBtn.childNodes[imgBtn.childNodes.length - 1].textContent = ' Foto';
+                    const audioBtn = document.getElementById('uploadAudioBtn');
+                    audioBtn.classList.remove('has-file');
+                    audioBtn.querySelector('i').className = 'fas fa-music';
+                    audioBtn.childNodes[audioBtn.childNodes.length - 1].textContent = ' Som';
+
+                    // Recarregar lista de espécies
+                    const speciesRes = await fetch(`/api/editor/${BIOMA_ID}/species`);
+                    allSpecies = await speciesRes.json();
+                    renderSpeciesList();
+                } else {
+                    showToast(data.error || 'Erro ao enviar', true);
+                }
+            } catch (err) {
+                showToast('Erro ao enviar arquivos', true);
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plus"></i> Enviar e padronizar';
         }
 
         // --- START ---

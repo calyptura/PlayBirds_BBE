@@ -491,6 +491,76 @@ def create_app():
 
         return jsonify({'ok': True})
 
+    @app.route('/api/editor/<bioma_id>/upload-species', methods=['POST'])
+    def api_editor_upload_species(bioma_id):
+        """Recebe upload de imagem e/ou som de uma espécie, padronizando o nome."""
+        latin_name = request.form.get('latinName', '').strip()
+        if not latin_name:
+            return jsonify({'error': 'Nome científico é obrigatório'}), 400
+
+        # Validar formato: "Genus species" ou "Genus species subspecies"
+        parts = latin_name.split()
+        if len(parts) < 2:
+            return jsonify({'error': 'Nome deve ter pelo menos gênero e espécie (ex: Paroaria dominicana)'}), 400
+
+        # Padronizar: primeira letra maiúscula no gênero, resto minúsculo
+        standardized = parts[0].capitalize() + ' ' + ' '.join(p.lower() for p in parts[1:])
+        file_base = standardized.replace(' ', '_')
+
+        results = {}
+
+        # Upload de imagem
+        if 'image' in request.files and request.files['image'].filename:
+            img_file = request.files['image']
+            ext = os.path.splitext(img_file.filename)[1].lower()
+            if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+                return jsonify({'error': f'Formato de imagem não suportado: {ext} (use jpg, png ou webp)'}), 400
+
+            dest_folder = os.path.join(IMAGES_FOLDER, bioma_id)
+            os.makedirs(dest_folder, exist_ok=True)
+
+            # Remover imagens antigas da mesma espécie
+            for old_ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                old_path = os.path.join(dest_folder, f'{file_base}{old_ext}')
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
+            dest_path = os.path.join(dest_folder, f'{file_base}{ext}')
+            img_file.save(dest_path)
+            results['image'] = f'{file_base}{ext}'
+            print(f"   📸 Imagem salva: {dest_path}")
+
+        # Upload de som
+        if 'audio' in request.files and request.files['audio'].filename:
+            audio_file = request.files['audio']
+            ext = os.path.splitext(audio_file.filename)[1].lower()
+            if ext not in ['.mp3', '.wav', '.flac', '.ogg']:
+                return jsonify({'error': f'Formato de áudio não suportado: {ext} (use mp3, wav, flac ou ogg)'}), 400
+
+            dest_folder = os.path.join(SONS_FOLDER, bioma_id)
+            os.makedirs(dest_folder, exist_ok=True)
+
+            # Remover áudios antigos da mesma espécie
+            for old_ext in ['.mp3', '.wav', '.flac', '.ogg']:
+                old_path = os.path.join(dest_folder, f'{file_base}{old_ext}')
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
+            dest_path = os.path.join(dest_folder, f'{file_base}{ext}')
+            audio_file.save(dest_path)
+            results['audio'] = f'{file_base}{ext}'
+            print(f"   🎵 Áudio salvo: {dest_path}")
+
+        if not results:
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+
+        # Limpar cache do bioma
+        BIOMA_CACHE.pop(bioma_id, None)
+
+        results['ok'] = True
+        results['latinName'] = standardized
+        return jsonify(results)
+
     @app.route('/api/editor/<bioma_id>/upload-background', methods=['POST'])
     def api_editor_upload_bg(bioma_id):
         """Recebe upload da imagem de fundo do mural."""
