@@ -6,9 +6,11 @@ Explore os sons das aves nos biomas do Brasil
 Desenvolvido para a Rede Sabiá
 
 Multi-tenant support: each tenant (project) has its own biomes,
-species, audio and images. The default "bbe" tenant uses the original
-flat file structure for backward compatibility.
+species, audio and images.
 """
+import sys
+def _log(msg):
+    print(f"[PlayBirds] {msg}", file=sys.stderr, flush=True)
 
 from flask import Flask, render_template, jsonify, request, Response, send_from_directory, redirect
 import csv
@@ -25,8 +27,9 @@ import tenants as tenant_mod
 # --- CONFIGURAÇÕES ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Railway Volume: se /app/data existe (volume montado), usa para dados persistentes
+# Railway Volume: quando disponível, usa para TODOS os dados persistentes
 RAILWAY_DATA = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '')
+_log(f"RAILWAY_VOLUME_MOUNT_PATH={RAILWAY_DATA!r} exists={os.path.isdir(RAILWAY_DATA) if RAILWAY_DATA else 'N/A'}")
 if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
     import shutil
 
@@ -48,7 +51,7 @@ if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
         if os.path.isdir(_old_dir) and not os.path.exists(_new_dir):
             os.makedirs(os.path.dirname(_new_dir), exist_ok=True)
             shutil.move(_old_dir, _new_dir)
-            print(f"  Migrado volume: data/{_bid}/ -> data/bbe/{_bid}/")
+            _log(f"Migrado volume: data/{_bid}/ -> data/bbe/{_bid}/")
 
     # Migrate sons/ and images/ (flat biome dirs -> under bbe/)
     for _folder_path, _folder_name in [(SONS_FOLDER, 'sons'), (IMAGES_FOLDER, 'images')]:
@@ -58,7 +61,7 @@ if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
             if os.path.isdir(_old_dir) and not os.path.exists(_new_dir):
                 os.makedirs(os.path.join(_folder_path, 'bbe'), exist_ok=True)
                 shutil.move(_old_dir, _new_dir)
-                print(f"  Migrado volume: {_folder_name}/{_bid}/ -> {_folder_name}/bbe/{_bid}/")
+                _log(f"Migrado volume: {_folder_name}/{_bid}/ -> {_folder_name}/bbe/{_bid}/")
         # Migrate images/mapa/* -> images/bbe/
         _mapa_dir = os.path.join(_folder_path, 'mapa')
         if os.path.isdir(_mapa_dir):
@@ -71,7 +74,7 @@ if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
                     shutil.move(_src, _dst)
             if not os.listdir(_mapa_dir):
                 os.rmdir(_mapa_dir)
-            print(f"  Migrado volume: {_folder_name}/mapa/ -> {_folder_name}/bbe/")
+            _log(f"Migrado volume: {_folder_name}/mapa/ -> {_folder_name}/bbe/")
 
     # Migrate hotspots.json to tenant config
     _old_hotspots = os.path.join(DATA_FOLDER, 'hotspots.json')
@@ -89,9 +92,9 @@ if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
                 with open(_bbe_config_path, 'w') as _f:
                     json.dump(_bbe_cfg, _f, indent=2, ensure_ascii=False)
             os.rename(_old_hotspots, _old_hotspots + '.bak')
-            print(f"  Migrado hotspots.json para tenant bbe config")
+            _log(f"Migrado hotspots.json para tenant bbe config")
         except Exception as _e:
-            print(f"  Aviso: erro ao migrar hotspots: {_e}")
+            _log(f"Aviso: erro ao migrar hotspots: {_e}")
 
     # --- Copy repo files to volume (only if not already present) ---
     for _repo_name, _vol_dest in [('data', DATA_FOLDER), ('sons', SONS_FOLDER), ('images', IMAGES_FOLDER)]:
@@ -107,9 +110,9 @@ if RAILWAY_DATA and os.path.isdir(RAILWAY_DATA):
                 _dst = os.path.join(_dest_dir, _f)
                 if not os.path.exists(_dst):
                     shutil.copy2(_src, _dst)
-                    print(f"  Copiado para volume: {_repo_name}/{os.path.join(_rel, _f)}")
+                    _log(f"Copiado para volume: {_repo_name}/{os.path.join(_rel, _f)}")
 
-    print(f"  Railway Volume: data={DATA_FOLDER} sons={SONS_FOLDER} images={IMAGES_FOLDER}")
+    _log(f"Railway Volume: data={DATA_FOLDER} sons={SONS_FOLDER} images={IMAGES_FOLDER}")
 else:
     DATA_FOLDER = os.path.join(BASE_DIR, 'data')
     SONS_FOLDER = os.path.join(BASE_DIR, 'sons')
