@@ -18,7 +18,7 @@
         <!-- Single compact bar -->
         <header class="mural-bar" id="muralToolbar">
             <div class="mural-bar-left">
-                <a href="/" class="back-btn" title="Back to map">
+                <a href="{{ base_url|default('') }}/" class="back-btn" title="Back to map">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <span class="bioma-name-badge" style="border-color: {{ bioma.cor }}40; color: {{ bioma.cor }}">
@@ -132,6 +132,7 @@
         // --- CONFIG ---
         const BIOMA_ID = '{{ bioma_id }}';
         const BIOMA_COR = '{{ bioma.cor }}';
+        const BASE_URL = '{{ base_url|default("") }}';
 
         // --- STATE ---
         let allMuralData = {};
@@ -149,7 +150,7 @@
         // --- INIT ---
         async function initMural() {
             try {
-                const res = await fetch(`/api/bioma/${BIOMA_ID}/mural`);
+                const res = await fetch(`${BASE_URL}/api/bioma/${BIOMA_ID}/mural`);
                 allMuralData = await res.json();
 
                 const muralIds = Object.keys(allMuralData);
@@ -210,12 +211,12 @@
             const bgImg = muralBackground;
             bgImg.onerror = function() {
                 // Try jpg
-                this.src = `/species-image/${BIOMA_ID}/fundo_${muralId}.jpg`;
+                this.src = `${BASE_URL}/species-image/${BIOMA_ID}/fundo_${muralId}.jpg`;
                 this.onerror = function() {
                     this.style.display = 'none';
                 };
             };
-            bgImg.src = `/species-image/${BIOMA_ID}/fundo_${muralId}.png`;
+            bgImg.src = `${BASE_URL}/species-image/${BIOMA_ID}/fundo_${muralId}.png`;
             bgImg.style.display = 'block';
 
             // Remove existing birds
@@ -255,7 +256,7 @@
                     : '';
 
                 el.innerHTML = `
-                    <img src="/species-image/${BIOMA_ID}/${bird.image}" alt="${bird.latinName}" loading="lazy" ${bird.flipped ? 'style="transform: scaleX(-1)"' : ''}>
+                    <img src="${BASE_URL}/species-image/${BIOMA_ID}/${bird.image}" alt="${bird.latinName}" loading="lazy" ${bird.flipped ? 'style="transform: scaleX(-1)"' : ''}>
                     <div class="mural-tooltip" ${tooltipStyle}>
                         <div class="latin">${bird.latinName}</div>
                         <div class="common">${bird.commonName}</div>
@@ -369,7 +370,7 @@
             element.classList.add('playing');
             showSpeciesOverlay(bird);
 
-            muralAudio.src = `/audio/${BIOMA_ID}/${bird.audioFile}`;
+            muralAudio.src = `${BASE_URL}/audio/${BIOMA_ID}/${bird.audioFile}`;
             // startTime 0 = início do arquivo
             muralAudio.currentTime = bird.startTime || 0;
             muralAudio.play().catch(e => console.log('Audio error:', e));
@@ -470,7 +471,7 @@
 
         function playGameSound() {
             const bird = gameState.currentBird;
-            muralAudio.src = `/audio/${BIOMA_ID}/${bird.audioFile}`;
+            muralAudio.src = `${BASE_URL}/audio/${BIOMA_ID}/${bird.audioFile}`;
             muralAudio.currentTime = bird.startTime || 0;
             muralAudio.play().catch(e => console.log('Audio error:', e));
 
@@ -547,7 +548,7 @@
                 mistakesEl.style.display = 'block';
                 mistakesList.innerHTML = gameState.mistakes.map(b => `
                     <div class="mistake-item">
-                        <img src="/species-image/${BIOMA_ID}/${b.image}" alt="${b.latinName}">
+                        <img src="${BASE_URL}/species-image/${BIOMA_ID}/${b.image}" alt="${b.latinName}">
                         <span>${b.latinName} — ${b.commonName}</span>
                     </div>
                 `).join('');

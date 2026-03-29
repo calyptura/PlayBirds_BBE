@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Projetos | PlayBirds</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+
+    <style>
+        .admin-layout {
+            min-height: 100vh;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: var(--space-lg);
+        }
+
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--space-2xl);
+            padding-bottom: var(--space-lg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .admin-header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+
+        .admin-header-left a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: 6px 12px;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--border);
+            transition: all var(--transition-base);
+        }
+
+        .admin-header-left a:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .admin-header h1 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .admin-header h1 span { color: var(--accent-primary); }
+
+        /* Tenant list */
+        .tenant-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+            margin-bottom: var(--space-2xl);
+        }
+
+        .tenant-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--space-lg);
+            transition: all var(--transition-base);
+        }
+
+        .tenant-item:hover {
+            border-color: var(--border-hover);
+        }
+
+        .tenant-item-info {
+            flex: 1;
+        }
+
+        .tenant-item-info h3 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .tenant-item-info .slug {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .tenant-item-info .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: var(--space-xs);
+        }
+
+        .tenant-item-actions {
+            display: flex;
+            gap: var(--space-sm);
+        }
+
+        .tenant-item-actions a,
+        .tenant-item-actions button {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        .tenant-item-actions a:hover,
+        .tenant-item-actions button:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .tenant-item-actions .btn-danger:hover {
+            background: rgba(239, 83, 80, 0.15);
+            color: var(--accent-danger);
+            border-color: rgba(239, 83, 80, 0.3);
+        }
+
+        .tenant-item-actions .btn-primary {
+            background: var(--gradient-accent);
+            color: var(--bg-deep);
+            border: none;
+        }
+
+        /* Create form */
+        .create-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+        }
+
+        .create-section h2 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-lg);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .form-group input,
+        .form-group textarea {
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: border-color var(--transition-fast);
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-group .hint {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* Biome builder */
+        .biome-builder {
+            margin-top: var(--space-lg);
+            padding-top: var(--space-lg);
+            border-top: 1px solid var(--border);
+        }
+
+        .biome-builder h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-md);
+        }
+
+        .biome-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-md);
+        }
+
+        .biome-tag {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: var(--radius-full);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-primary);
+        }
+
+        .biome-tag .remove-biome {
+            cursor: pointer;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+
+        .biome-tag .remove-biome:hover {
+            color: var(--accent-danger);
+        }
+
+        .add-biome-row {
+            display: flex;
+            gap: var(--space-sm);
+            align-items: flex-end;
+        }
+
+        .add-biome-row .form-group {
+            flex: 1;
+        }
+
+        .add-biome-row button {
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--accent-primary);
+            background: transparent;
+            color: var(--accent-primary);
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            white-space: nowrap;
+        }
+
+        .add-biome-row button:hover {
+            background: rgba(124, 179, 66, 0.15);
+        }
+
+        /* Submit */
+        .form-actions {
+            margin-top: var(--space-xl);
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-create {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border-radius: var(--radius-full);
+            border: none;
+            background: var(--gradient-accent);
+            color: var(--bg-deep);
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+
+        .btn-create:hover {
+            transform: scale(1.03);
+            box-shadow: var(--shadow-accent);
+        }
+
+        .btn-create:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: var(--space-xl);
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 12px 24px;
+            border-radius: var(--radius-full);
+            font-size: 0.85rem;
+            font-weight: 500;
+            z-index: 100;
+            transition: transform 0.3s var(--ease-out);
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.success {
+            background: var(--accent-success);
+            color: var(--bg-deep);
+        }
+
+        .toast.error {
+            background: var(--accent-danger);
+            color: white;
+        }
+
+        /* Edit modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.2rem;
+            margin-bottom: var(--space-lg);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: var(--space-sm);
+            justify-content: flex-end;
+            margin-top: var(--space-lg);
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .modal-actions button:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .modal-actions .btn-save {
+            background: var(--gradient-accent);
+            color: var(--bg-deep);
+            border: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <header class="admin-header">
+            <div class="admin-header-left">
+                <a href="/"><i class="fas fa-arrow-left"></i> Voltar</a>
+                <h1><i class="fas fa-folder-open" style="color: var(--text-muted);"></i> Gerenciar <span>Projetos</span></h1>
+            </div>
+        </header>
+
+        <!-- Tenant list -->
+        <div class="tenant-list" id="tenantList">
+            <p style="color: var(--text-muted);">Carregando...</p>
+        </div>
+
+        <!-- Create new tenant -->
+        <div class="create-section">
+            <h2><i class="fas fa-plus-circle" style="color: var(--accent-primary);"></i> Novo Projeto</h2>
+
+            <form id="createForm" onsubmit="createTenant(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Slug (identificador na URL)</label>
+                        <input type="text" id="newSlug" placeholder="parque-itatiaia" pattern="[a-z0-9-]+" required>
+                        <span class="hint">Letras minusculas, numeros e hifens. Min. 3 caracteres.</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Nome do Projeto</label>
+                        <input type="text" id="newName" placeholder="Parque Nacional do Itatiaia" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Subtitulo (opcional)</label>
+                        <input type="text" id="newSubtitle" placeholder="Sons da natureza no Parque Nacional">
+                    </div>
+                    <div class="form-group">
+                        <label>Cor principal</label>
+                        <input type="color" id="newColor" value="#1b5e20">
+                    </div>
+                    <div class="form-group">
+                        <label>Senha de admin (opcional)</label>
+                        <input type="password" id="newPassword" placeholder="Deixe vazio para sem senha">
+                    </div>
+                </div>
+
+                <!-- Biome builder -->
+                <div class="biome-builder">
+                    <h3><i class="fas fa-layer-group" style="color: var(--accent-primary);"></i> Ambientes / Biomas</h3>
+                    <div class="biome-tags" id="biomeTags"></div>
+                    <div class="add-biome-row">
+                        <div class="form-group">
+                            <label>ID do ambiente</label>
+                            <input type="text" id="biomeId" placeholder="mata-altitude">
+                        </div>
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" id="biomeName" placeholder="Mata de Altitude">
+                        </div>
+                        <div class="form-group">
+                            <label>Cor</label>
+                            <input type="color" id="biomeColor" value="#2e7d32">
+                        </div>
+                        <button type="button" onclick="addBiome()"><i class="fas fa-plus"></i> Adicionar</button>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-create" id="createBtn">
+                        <i class="fas fa-rocket"></i> Criar Projeto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <h2><i class="fas fa-edit" style="color: var(--accent-primary);"></i> Editar Projeto</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="editName">
+                </div>
+                <div class="form-group">
+                    <label>Subtitulo</label>
+                    <input type="text" id="editSubtitle">
+                </div>
+                <div class="form-group">
+                    <label>Cor principal</label>
+                    <input type="color" id="editColor">
+                </div>
+                <div class="form-group">
+                    <label>Idioma</label>
+                    <input type="text" id="editLanguage" placeholder="pt">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeEditModal()">Cancelar</button>
+                <button class="btn-save" onclick="saveEdit()"><i class="fas fa-check"></i> Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let pendingBiomes = {};
+        let editingSlug = null;
+
+        // --- Load tenants ---
+        async function loadTenants() {
+            try {
+                const res = await fetch('/api/tenants');
+                const tenants = await res.json();
+                renderTenants(tenants);
+            } catch (err) {
+                document.getElementById('tenantList').innerHTML =
+                    '<p style="color: var(--accent-danger);">Erro ao carregar projetos</p>';
+            }
+        }
+
+        function renderTenants(tenants) {
+            const list = document.getElementById('tenantList');
+            if (tenants.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-muted);">Nenhum projeto criado ainda.</p>';
+                return;
+            }
+            list.innerHTML = tenants.map(t => `
+                <div class="tenant-item">
+                    <div class="tenant-item-info">
+                        <h3>${t.name}</h3>
+                        <div class="slug">/t/${t.slug}</div>
+                        ${t.subtitle ? `<div class="subtitle">${t.subtitle}</div>` : ''}
+                    </div>
+                    <div class="tenant-item-actions">
+                        <a href="/t/${t.slug}" class="btn-primary">
+                            <i class="fas fa-eye"></i> Ver
+                        </a>
+                        <a href="/t/${t.slug}/admin">
+                            <i class="fas fa-cog"></i> Admin
+                        </a>
+                        <button onclick="openEditModal('${t.slug}')">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        ${t.slug !== 'bbe' ? `
+                        <button class="btn-danger" onclick="deleteTenant('${t.slug}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- Create tenant ---
+        function addBiome() {
+            const id = document.getElementById('biomeId').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+            const name = document.getElementById('biomeName').value.trim();
+            const color = document.getElementById('biomeColor').value;
+            if (!id || !name) return;
+
+            pendingBiomes[id] = { nome: name, cor: color, descricao: '', icone: '',
+                hotspot_x: 10, hotspot_y: 10, hotspot_w: 15, hotspot_h: 10 };
+
+            renderBiomeTags();
+            document.getElementById('biomeId').value = '';
+            document.getElementById('biomeName').value = '';
+        }
+
+        function removeBiome(id) {
+            delete pendingBiomes[id];
+            renderBiomeTags();
+        }
+
+        function renderBiomeTags() {
+            const container = document.getElementById('biomeTags');
+            container.innerHTML = Object.entries(pendingBiomes).map(([id, b]) => `
+                <span class="biome-tag" style="border-color: ${b.cor}40;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: ${b.cor}; display: inline-block;"></span>
+                    ${b.nome} <code style="font-size: 0.7rem; color: var(--text-muted);">${id}</code>
+                    <span class="remove-biome" onclick="removeBiome('${id}')">&times;</span>
+                </span>
+            `).join('');
+        }
+
+        async function createTenant(e) {
+            e.preventDefault();
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+
+            const payload = {
+                slug: document.getElementById('newSlug').value.trim(),
+                name: document.getElementById('newName').value.trim(),
+                subtitle: document.getElementById('newSubtitle').value.trim(),
+                theme: {
+                    primaryColor: document.getElementById('newColor').value,
+                    accentColor: '#66bb6a'
+                },
+                adminPassword: document.getElementById('newPassword').value,
+                biomes: pendingBiomes
+            };
+
+            try {
+                const res = await fetch('/api/tenants', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao criar projeto', 'error');
+                    btn.disabled = false;
+                    return;
+                }
+                showToast(`Projeto "${data.name}" criado!`, 'success');
+                document.getElementById('createForm').reset();
+                pendingBiomes = {};
+                renderBiomeTags();
+                loadTenants();
+            } catch (err) {
+                showToast('Erro de rede', 'error');
+            }
+            btn.disabled = false;
+        }
+
+        // --- Edit tenant ---
+        async function openEditModal(slug) {
+            editingSlug = slug;
+            try {
+                const res = await fetch(`/api/tenants/${slug}`);
+                const t = await res.json();
+                document.getElementById('editName').value = t.name || '';
+                document.getElementById('editSubtitle').value = t.subtitle || '';
+                document.getElementById('editColor').value = (t.theme && t.theme.primaryColor) || '#1b5e20';
+                document.getElementById('editLanguage').value = t.language || 'pt';
+                document.getElementById('editModal').classList.add('active');
+            } catch (err) {
+                showToast('Erro ao carregar projeto', 'error');
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            editingSlug = null;
+        }
+
+        async function saveEdit() {
+            if (!editingSlug) return;
+            const payload = {
+                name: document.getElementById('editName').value.trim(),
+                subtitle: document.getElementById('editSubtitle').value.trim(),
+                theme: {
+                    primaryColor: document.getElementById('editColor').value,
+                    accentColor: '#66bb6a'
+                },
+                language: document.getElementById('editLanguage').value.trim()
+            };
+            try {
+                const res = await fetch(`/api/tenants/${editingSlug}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showToast('Projeto atualizado!', 'success');
+                    closeEditModal();
+                    loadTenants();
+                } else {
+                    const data = await res.json();
+                    showToast(data.error || 'Erro', 'error');
+                }
+            } catch (err) {
+                showToast('Erro de rede', 'error');
+            }
+        }
+
+        // --- Delete tenant ---
+        async function deleteTenant(slug) {
+            if (!confirm(`Tem certeza que deseja deletar o projeto "${slug}"? Esta acao nao pode ser desfeita.`)) return;
+            try {
+                const res = await fetch(`/api/tenants/${slug}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showToast('Projeto deletado', 'success');
+                    loadTenants();
+                } else {
+                    const data = await res.json();
+                    showToast(data.error || 'Erro', 'error');
+                }
+            } catch (err) {
+                showToast('Erro de rede', 'error');
+            }
+        }
+
+        // --- Toast ---
+        function showToast(msg, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // --- Init ---
+        loadTenants();
+    </script>
+</body>
+</html>

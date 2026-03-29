@@ -22,7 +22,7 @@
                     <img src="/map-image/mapa_biomas.png" alt="Brazilian Biomes Map" draggable="false">
 
                     {% for bioma_id, bioma in biomas.items() %}
-                    <a href="{% if bioma.disponivel %}/bioma/{{ bioma_id }}{% else %}#{% endif %}"
+                    <a href="{% if bioma.disponivel %}{{ base_url }}/bioma/{{ bioma_id }}{% else %}#{% endif %}"
                        class="map-hotspot {% if not bioma.disponivel %}disabled{% endif %}"
                        data-biome="{{ bioma_id }}"
                        style="left: {{ bioma.hotspot_x }}%; top: {{ bioma.hotspot_y }}%; width: {{ bioma.hotspot_w }}%; height: {{ bioma.hotspot_h }}%;"

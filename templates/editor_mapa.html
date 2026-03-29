@@ -419,7 +419,8 @@
                 });
             }
 
-            const res = await fetch('/api/editor/mapa/save', {
+            const BASE_URL = '{{ base_url|default("") }}';
+            const res = await fetch(`${BASE_URL}/api/editor/mapa/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ hotspots })

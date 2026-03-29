@@ -699,7 +699,7 @@
         <!-- Header -->
         <header class="editor-header">
             <div class="editor-header-left">
-                <a href="/admin"><i class="fas fa-arrow-left"></i> Admin</a>
+                <a href="{{ base_url|default('') }}/admin"><i class="fas fa-arrow-left"></i> Admin</a>
                 <h1>Editor de Mural — <span>{{ bioma.nome }}</span></h1>
             </div>
             <div class="editor-header-actions">
@@ -824,6 +824,7 @@
 
     <script>
         const BIOMA_ID = '{{ bioma_id }}';
+        const BASE_URL = '{{ base_url|default("") }}';
 
         // State
         let allSpecies = [];          // from API
@@ -838,11 +839,11 @@
         // --- INIT ---
         async function init() {
             // Load species
-            const res = await fetch(`/api/editor/${BIOMA_ID}/species`);
+            const res = await fetch(`${BASE_URL}/api/editor/${BIOMA_ID}/species`);
             allSpecies = await res.json();
 
             // Load existing positions
-            const existingRes = await fetch(`/api/editor/${BIOMA_ID}/existing`);
+            const existingRes = await fetch(`${BASE_URL}/api/editor/${BIOMA_ID}/existing`);
             const existing = await existingRes.json();
 
             // Merge existing with species data
@@ -880,9 +881,9 @@
                 // Try jpg
                 const img2 = new Image();
                 img2.onload = () => setBackground(img2.src);
-                img2.src = `/species-image/${BIOMA_ID}/fundo_default.jpg`;
+                img2.src = `${BASE_URL}/species-image/${BIOMA_ID}/fundo_default.jpg`;
             };
-            img.src = `/species-image/${BIOMA_ID}/fundo_default.png`;
+            img.src = `${BASE_URL}/species-image/${BIOMA_ID}/fundo_default.png`;
         }
 
         function setBackground(src) {
@@ -913,13 +914,13 @@
             formData.append('mural', 'default');
 
             try {
-                const res = await fetch(`/api/editor/${BIOMA_ID}/upload-background`, {
+                const res = await fetch(`${BASE_URL}/api/editor/${BIOMA_ID}/upload-background`, {
                     method: 'POST',
                     body: formData
                 });
                 const data = await res.json();
                 if (data.ok) {
-                    setBackground(`/species-image/${BIOMA_ID}/${data.filename}?t=${Date.now()}`);
+                    setBackground(`${BASE_URL}/species-image/${BIOMA_ID}/${data.filename}?t=${Date.now()}`);
                     showToast('Fundo carregado!');
                 } else {
                     showToast(data.error || 'Erro ao carregar fundo', true);
@@ -1338,7 +1339,7 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
 
             try {
-                const res = await fetch(`/api/editor/${BIOMA_ID}/save`, {
+                const res = await fetch(`${BASE_URL}/api/editor/${BIOMA_ID}/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ species: placedBirds })
@@ -1441,7 +1442,7 @@
             if (audioFile) formData.append('audio', audioFile);
 
             try {
-                const res = await fetch(`/api/editor/${BIOMA_ID}/upload-species`, {
+                const res = await fetch(`${BASE_URL}/api/editor/${BIOMA_ID}/upload-species`, {
                     method: 'POST',
                     body: formData
                 });
@@ -1467,7 +1468,7 @@
                     audioBtn.childNodes[audioBtn.childNodes.length - 1].textContent = ' Som';
 
                     // Recarregar lista de espécies
-                    const speciesRes = await fetch(`/api/editor/${BIOMA_ID}/species`);
+                    const speciesRes = await fetch(`${BASE_URL}/api/editor/${BIOMA_ID}/species`);
                     allSpecies = await speciesRes.json();
                     renderSpeciesList();
                 } else {

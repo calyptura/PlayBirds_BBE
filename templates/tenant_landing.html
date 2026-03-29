@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tenant.name }}{% if tenant.subtitle %} | {{ tenant.subtitle }}{% endif %}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+
+    <style>
+        .landing-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Hero Section */
+        .landing-hero {
+            position: relative;
+            min-height: 40vh;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: var(--space-2xl) var(--space-lg);
+            overflow: hidden;
+        }
+
+        .landing-hero-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .landing-hero-bg img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .landing-hero-bg .gradient-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                transparent 0%,
+                rgba(10, 15, 13, 0.5) 50%,
+                var(--bg-deep) 100%
+            );
+        }
+
+        .landing-hero-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 700px;
+        }
+
+        .landing-hero-content h1 {
+            font-family: 'Fraunces', serif;
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-sm);
+        }
+
+        .landing-hero-content p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Nav bar */
+        .landing-nav {
+            position: absolute;
+            top: var(--space-md);
+            left: var(--space-md);
+            z-index: 2;
+            display: flex;
+            gap: var(--space-sm);
+        }
+
+        .landing-nav a {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: var(--radius-full);
+            background: rgba(10, 15, 13, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all var(--transition-base);
+        }
+
+        .landing-nav a:hover {
+            background: rgba(10, 15, 13, 0.85);
+            color: var(--text-primary);
+        }
+
+        /* Biomes/Environments Section */
+        .landing-content {
+            flex: 1;
+            padding: var(--space-xl) var(--space-lg);
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .section-title {
+            font-family: 'Fraunces', serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-lg);
+        }
+
+        .section-title i {
+            color: var(--accent-primary);
+            margin-right: var(--space-sm);
+        }
+
+        /* Map mode: clickable hotspots over an image */
+        .map-mode {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto var(--space-2xl);
+        }
+
+        .map-mode .map-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .map-mode .map-wrapper img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: var(--radius-lg);
+        }
+
+        .map-mode .map-hotspot {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-base);
+        }
+
+        .map-mode .map-hotspot:hover {
+            background: rgba(124, 179, 66, 0.15);
+        }
+
+        .map-mode .map-hotspot .hotspot-label {
+            opacity: 0;
+            background: rgba(10, 15, 13, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 6px 14px;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            transition: opacity var(--transition-base);
+        }
+
+        .map-mode .map-hotspot:hover .hotspot-label {
+            opacity: 1;
+        }
+
+        .map-mode .map-hotspot.disabled {
+            cursor: default;
+            opacity: 0.4;
+        }
+
+        /* Grid mode: card grid (when no map image) */
+        .biome-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .biome-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            transition: all var(--transition-base);
+            animation: fadeInUp 0.4s var(--ease-out) backwards;
+        }
+
+        .biome-card:hover {
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-card-hover);
+            transform: translateY(-3px);
+        }
+
+        .biome-card.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .biome-card-color {
+            height: 8px;
+        }
+
+        .biome-card-body {
+            padding: var(--space-lg);
+        }
+
+        .biome-card-body h3 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .biome-card-body .biome-icon {
+            font-size: 1.5rem;
+            margin-bottom: var(--space-sm);
+            display: block;
+        }
+
+        .biome-card-body p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .biome-card-footer {
+            padding: var(--space-sm) var(--space-lg) var(--space-md);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: 0.75rem;
+        }
+
+        .biome-card-footer.available {
+            color: var(--accent-primary);
+        }
+
+        .biome-card-footer.coming-soon {
+            color: var(--text-muted);
+        }
+
+        /* Admin tools */
+        .landing-admin-bar {
+            position: fixed;
+            bottom: var(--space-lg);
+            right: var(--space-lg);
+            display: flex;
+            gap: var(--space-sm);
+            z-index: 10;
+        }
+
+        .landing-admin-bar a {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border-radius: var(--radius-full);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all var(--transition-base);
+        }
+
+        .landing-admin-bar a:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-page">
+        <!-- Hero -->
+        <div class="landing-hero" {% if not tenant.coverImage and tenant.theme %}style="background: linear-gradient(135deg, {{ tenant.theme.primaryColor }}33 0%, var(--bg-deep) 100%);"{% endif %}>
+            <!-- Nav -->
+            <div class="landing-nav">
+                <a href="/"><i class="fas fa-arrow-left"></i> Projetos</a>
+            </div>
+
+            {% if tenant.coverImage %}
+            <div class="landing-hero-bg">
+                <img src="{{ base_url }}/tenant-image/{{ tenant.coverImage }}" alt="{{ tenant.name }}">
+                <div class="gradient-overlay"></div>
+            </div>
+            {% endif %}
+
+            <div class="landing-hero-content">
+                <h1>{{ tenant.name }}</h1>
+                {% if tenant.subtitle %}
+                <p>{{ tenant.subtitle }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="landing-content">
+            {% if tenant.mapImage %}
+            <!-- Map mode: clickable hotspots -->
+            <h2 class="section-title"><i class="fas fa-map-marked-alt"></i> Ambientes</h2>
+            <div class="map-mode">
+                <div class="map-wrapper">
+                    <img src="{{ base_url }}/tenant-image/{{ tenant.mapImage }}" alt="Mapa de ambientes" draggable="false">
+
+                    {% for bioma_id, bioma in biomes.items() %}
+                    <a href="{% if bioma.disponivel %}{{ base_url }}/bioma/{{ bioma_id }}{% else %}#{% endif %}"
+                       class="map-hotspot {% if not bioma.disponivel %}disabled{% endif %}"
+                       data-biome="{{ bioma_id }}"
+                       style="left: {{ bioma.hotspot_x }}%; top: {{ bioma.hotspot_y }}%; width: {{ bioma.hotspot_w }}%; height: {{ bioma.hotspot_h }}%;"
+                       {% if not bioma.disponivel %}onclick="return false;"{% endif %}>
+                        <span class="hotspot-label">
+                            {% if bioma.disponivel %}
+                            <i class="fas fa-headphones"></i> {{ bioma.nome }}
+                            {% else %}
+                            <i class="fas fa-clock"></i> {{ bioma.nome }} (em breve)
+                            {% endif %}
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Grid mode: always shown (as alternative or primary) -->
+            <h2 class="section-title">
+                <i class="fas fa-layer-group"></i>
+                {% if tenant.mapImage %}Todos os ambientes{% else %}Ambientes{% endif %}
+            </h2>
+            <div class="biome-grid">
+                {% for bioma_id, bioma in biomes.items() %}
+                <a href="{% if bioma.disponivel %}{{ base_url }}/bioma/{{ bioma_id }}{% else %}#{% endif %}"
+                   class="biome-card {% if not bioma.disponivel %}disabled{% endif %}"
+                   style="animation-delay: {{ loop.index0 * 0.08 }}s;"
+                   {% if not bioma.disponivel %}onclick="return false;"{% endif %}>
+                    <div class="biome-card-color" style="background: {{ bioma.cor }};"></div>
+                    <div class="biome-card-body">
+                        {% if bioma.icone %}<span class="biome-icon">{{ bioma.icone }}</span>{% endif %}
+                        <h3>{{ bioma.nome }}</h3>
+                        {% if bioma.descricao %}<p>{{ bioma.descricao }}</p>{% endif %}
+                    </div>
+                    <div class="biome-card-footer {% if bioma.disponivel %}available{% else %}coming-soon{% endif %}">
+                        {% if bioma.disponivel %}
+                        <i class="fas fa-headphones"></i> Explorar sons
+                        {% else %}
+                        <i class="fas fa-clock"></i> Em breve
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Admin bar -->
+        <div class="landing-admin-bar">
+            <a href="{{ base_url }}/admin"><i class="fas fa-cog"></i> Admin</a>
+        </div>
+    </div>
+
+    <script>
+        // Smooth page transition on biome click
+        document.querySelectorAll('.map-hotspot:not(.disabled), .biome-card:not(.disabled)').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const href = this.getAttribute('href');
+                if (href && href !== '#') {
+                    document.querySelector('.landing-page').style.opacity = '0';
+                    document.querySelector('.landing-page').style.transition = 'opacity 0.4s ease';
+                    setTimeout(() => { window.location.href = href; }, 400);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
