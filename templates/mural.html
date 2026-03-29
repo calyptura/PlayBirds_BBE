@@ -244,10 +244,11 @@
                 el.style.zIndex = bird.layer || 1;
                 el.style.transform = 'translate(-50%, -50%)';
                 if (bird.customWidth) {
-                    // Hitbox is ~62% of visual size (image overflows to 160%)
-                    const hitbox = Math.round(bird.customWidth * 0.62);
-                    el.style.width = `${hitbox}px`;
-                    el.style.height = `${hitbox}px`;
+                    // Convert customWidth (originally in px for ~1080p) to vmin
+                    // Reference: 110px medium ≈ 10vmin, so 1px ≈ 0.0909vmin
+                    const hitboxVmin = (bird.customWidth * 0.62 * 10 / 110).toFixed(1);
+                    el.style.width = `${hitboxVmin}vmin`;
+                    el.style.height = `${hitboxVmin}vmin`;
                 }
                 el.dataset.index = index;
 

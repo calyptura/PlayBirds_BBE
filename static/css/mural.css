@@ -272,11 +272,11 @@
     pointer-events: none;
 }
 
-/* Hitbox sizes (smaller than visual) */
-.size-small { width: 75px; height: 75px; }
-.size-medium { width: 110px; height: 110px; }
-.size-large { width: 155px; height: 155px; }
-.size-xlarge { width: 210px; height: 210px; }
+/* Hitbox sizes - use vmin so birds scale proportionally with the screen */
+.size-small { width: 7vmin; height: 7vmin; }
+.size-medium { width: 10vmin; height: 10vmin; }
+.size-large { width: 14vmin; height: 14vmin; }
+.size-xlarge { width: 19vmin; height: 19vmin; }
 
 /* --- Tooltip --- */
 .mural-tooltip {
@@ -680,10 +680,10 @@
 
 /* --- Responsive --- */
 @media (max-width: 900px) {
-    .size-small { width: 80px; height: 80px; }
-    .size-medium { width: 120px; height: 120px; }
-    .size-large { width: 180px; height: 180px; }
-    .size-xlarge { width: 240px; height: 240px; }
+    .size-small { width: 10vmin; height: 10vmin; }
+    .size-medium { width: 14vmin; height: 14vmin; }
+    .size-large { width: 20vmin; height: 20vmin; }
+    .size-xlarge { width: 27vmin; height: 27vmin; }
 
     .mural-toolbar {
         flex-wrap: wrap;
