@@ -105,36 +105,25 @@ def github_commit_file(file_path, file_bytes, commit_message):
 
 
 # --- TENANT-AWARE FILE PATHS ---
-
-def _is_default_tenant(slug):
-    return slug == DEFAULT_TENANT
-
+# All tenants use the same unified structure: {root}/{slug}/{bioma_id}/
 
 def get_sons_folder(tenant_slug, bioma_id):
     """Get the audio folder for a tenant's biome."""
-    if _is_default_tenant(tenant_slug):
-        return os.path.join(SONS_FOLDER, bioma_id)
     return os.path.join(SONS_FOLDER, tenant_slug, bioma_id)
 
 
 def get_images_folder(tenant_slug, bioma_id):
     """Get the images folder for a tenant's biome."""
-    if _is_default_tenant(tenant_slug):
-        return os.path.join(IMAGES_FOLDER, bioma_id)
     return os.path.join(IMAGES_FOLDER, tenant_slug, bioma_id)
 
 
 def get_tenant_images_folder(tenant_slug):
     """Get the tenant-level images folder (cover, map, etc.)."""
-    if _is_default_tenant(tenant_slug):
-        return os.path.join(IMAGES_FOLDER, 'mapa')
     return os.path.join(IMAGES_FOLDER, tenant_slug)
 
 
 def get_data_folder(tenant_slug, bioma_id):
     """Get the data folder for a tenant's biome."""
-    if _is_default_tenant(tenant_slug):
-        return os.path.join(DATA_FOLDER, bioma_id)
     return os.path.join(DATA_FOLDER, tenant_slug, bioma_id)
 
 
@@ -159,11 +148,8 @@ def find_species_image(latin_name, tenant_slug, bioma_id):
     normalized_name = latin_name.strip().replace(' ', '_')
 
     bioma_img_folder = get_images_folder(tenant_slug, bioma_id)
-    if _is_default_tenant(tenant_slug):
-        folders_to_search = [bioma_img_folder, IMAGES_FOLDER]
-    else:
-        tenant_img_folder = os.path.join(IMAGES_FOLDER, tenant_slug)
-        folders_to_search = [bioma_img_folder, tenant_img_folder]
+    tenant_img_folder = get_tenant_images_folder(tenant_slug)
+    folders_to_search = [bioma_img_folder, tenant_img_folder]
 
     for folder in folders_to_search:
         if not os.path.isdir(folder):
@@ -788,13 +774,15 @@ def create_app():
         bioma_img = get_images_folder(DEFAULT_TENANT, bioma_id)
         if os.path.exists(os.path.join(bioma_img, filename)):
             return send_from_directory(bioma_img, filename)
-        if os.path.exists(os.path.join(IMAGES_FOLDER, filename)):
-            return send_from_directory(IMAGES_FOLDER, filename)
+        # Fallback to tenant-level images
+        tenant_img = get_tenant_images_folder(DEFAULT_TENANT)
+        if os.path.exists(os.path.join(tenant_img, filename)):
+            return send_from_directory(tenant_img, filename)
         return "Image not found", 404
 
     @app.route('/map-image/<path:filename>')
     def serve_map_image(filename):
-        return send_from_directory(os.path.join(IMAGES_FOLDER, 'mapa'), filename)
+        return send_from_directory(get_tenant_images_folder(DEFAULT_TENANT), filename)
 
     @app.route('/admin')
     def admin_page():
