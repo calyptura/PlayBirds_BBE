@@ -943,7 +943,7 @@
             list.innerHTML = allSpecies.map((sp, i) => {
                 const isPlaced = placedBirds.some(b => b.latinName === sp.latinName);
                 const imgHtml = sp.image
-                    ? `<img src="/species-image/${BIOMA_ID}/${sp.image}" alt="${sp.latinName}">`
+                    ? `<img src="${BASE_URL}/species-image/${BIOMA_ID}/${sp.image}" alt="${sp.latinName}">`
                     : `<div class="no-img"><i class="fas fa-dove"></i></div>`;
 
                 return `
@@ -1024,7 +1024,7 @@
                 const commonDisplay = bird.commonName || 'sem nome popular';
 
                 el.innerHTML = `
-                    <img src="/species-image/${BIOMA_ID}/${bird.image}" alt="${bird.latinName}">
+                    <img src="${BASE_URL}/species-image/${BIOMA_ID}/${bird.image}" alt="${bird.latinName}">
                     <div class="bird-label" ${labelStyle ? `style="${labelStyle}"` : ''}>
                         <div class="label-latin">${bird.latinName}</div>
                         <div class="label-common">${commonDisplay}</div>
