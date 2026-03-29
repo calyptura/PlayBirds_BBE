@@ -244,11 +244,11 @@
                 el.style.zIndex = bird.layer || 1;
                 el.style.transform = 'translate(-50%, -50%)';
                 if (bird.customWidth) {
-                    // Convert customWidth (originally in px for ~1080p) to vmin
-                    // Reference: 110px medium ≈ 10vmin, so 1px ≈ 0.0909vmin
-                    const hitboxVmin = (bird.customWidth * 0.62 * 10 / 110).toFixed(1);
-                    el.style.width = `${hitboxVmin}vmin`;
-                    el.style.height = `${hitboxVmin}vmin`;
+                    // Convert customWidth (px in editor canvas ~1200px) to vw
+                    // hitbox = customWidth * 0.62, then / 1200 * 100 = vw
+                    const hitboxVw = (bird.customWidth * 0.62 / 1200 * 100).toFixed(2);
+                    el.style.width = `${hitboxVw}vw`;
+                    el.style.height = `${hitboxVw}vw`;
                 }
                 el.dataset.index = index;
 

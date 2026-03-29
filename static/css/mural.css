@@ -272,11 +272,13 @@
     pointer-events: none;
 }
 
-/* Hitbox sizes - use vmin so birds scale proportionally with the screen */
-.size-small { width: 7vmin; height: 7vmin; }
-.size-medium { width: 10vmin; height: 10vmin; }
-.size-large { width: 14vmin; height: 14vmin; }
-.size-xlarge { width: 19vmin; height: 19vmin; }
+/* Hitbox sizes - proportional to viewport width so birds scale with the background.
+   Reference: editor canvas ~1200px, small=75px medium=110px large=155px xlarge=210px
+   Ratio: size / 1200 * 100 = vw value */
+.size-small { width: 6.25vw; height: 6.25vw; }
+.size-medium { width: 9.2vw; height: 9.2vw; }
+.size-large { width: 12.9vw; height: 12.9vw; }
+.size-xlarge { width: 17.5vw; height: 17.5vw; }
 
 /* --- Tooltip --- */
 .mural-tooltip {
@@ -680,10 +682,10 @@
 
 /* --- Responsive --- */
 @media (max-width: 900px) {
-    .size-small { width: 10vmin; height: 10vmin; }
-    .size-medium { width: 14vmin; height: 14vmin; }
-    .size-large { width: 20vmin; height: 20vmin; }
-    .size-xlarge { width: 27vmin; height: 27vmin; }
+    .size-small { width: 8vw; height: 8vw; }
+    .size-medium { width: 12vw; height: 12vw; }
+    .size-large { width: 16vw; height: 16vw; }
+    .size-xlarge { width: 22vw; height: 22vw; }
 
     .mural-toolbar {
         flex-wrap: wrap;
