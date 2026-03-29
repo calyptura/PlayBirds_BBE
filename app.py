@@ -825,13 +825,7 @@ def create_app():
 
     @app.route('/admin')
     def admin_page():
-        tenant = tenant_mod.get_tenant(DATA_FOLDER, DEFAULT_TENANT)
-        biomes = _get_legacy_biomas()
-        return render_template('admin.html',
-                               title=tenant['name'] if tenant else 'PlayBirds BBE',
-                               biomas=biomes,
-                               base_url='',
-                               tenant_slug=DEFAULT_TENANT)
+        return redirect('/admin/tenants')
 
     @app.route('/api/admin/status')
     def api_admin_status():
